@@ -29,6 +29,23 @@
 - **Summary statistics** - Shows total transactions, amounts, donors, and recipients
 - **Better UX** - Results display automatically in main area (no dropdown)
 
+### Sprint 4: Polish & Advanced Features ✅
+- **CSV Export** - Download search results and filtered data as CSV files
+- **Top Stories** - Algorithmic highlights showing key insights:
+  - Independent funding surge (2025 vs 2022)
+  - Largest new donor identification
+  - Most indebted party tracking
+  - Highest dark money spending alerts
+- **Comparison Mode** - Side-by-side analysis of different time periods:
+  - Select any two periods to compare
+  - Percentage change indicators with ↑↓ arrows
+  - Top 10 donors/recipients comparison tables
+  - Color-coded metrics (green=increase, red=decrease)
+- **Production Deployment** - Live on Vercel at https://aectransparencyreader.vercel.app
+  - PostgreSQL database with 269,521 records migrated
+  - Static file serving configured
+  - Environment variables secured
+
 ## Current Status
 
 ### Features Working
@@ -36,9 +53,12 @@
 ✅ Real-time search across all donation data
 ✅ Filter by time period, entity type, and amount
 ✅ CSV file upload with validation
+✅ CSV export of search results and filtered data
 ✅ Auto-generated insights
+✅ Top Stories algorithmic highlights
+✅ Comparison mode (side-by-side period analysis)
 ✅ Detailed transaction tables
-✅ Responsive design
+✅ Production deployment on Vercel
 
 ### Database
 - **Size**: 41.8 MB SQLite (fits easily in Vercel Postgres 256 MB limit)
@@ -53,6 +73,7 @@
 - `GET /api/search?q=<query>` - **Enhanced** - Returns detailed transactions
 - `GET /api/explore?period=<period>&minAmount=<amount>` - Filtered exploration
 - `GET /api/insights` - Auto-generated insights
+- `GET /api/top-stories` - **NEW** - Algorithmic highlights
 - `POST /api/upload` - CSV file upload
 - `GET /tables` - List all database tables
 - `GET /schema/<table>` - Table schema info
@@ -71,51 +92,67 @@
 - **161** one-shot donors in 2025
 - Third-party electoral spending identifiable
 
+## Deployment Status
+
+✅ **DEPLOYED** - Live at https://aectransparencyreader.vercel.app
+
+### Deployment Details
+- **Platform**: Vercel
+- **Database**: Neon PostgreSQL (269,521 records migrated)
+- **GitHub**: https://github.com/giddr/aectransparencyreader
+- **Environment**: Production, Preview, Development configured
+- **Static Assets**: Properly served via @vercel/static
+
+### Testing Checklist
+✅ Dashboard loads with summary cards
+✅ Search returns transaction details
+✅ Filters work (time period, entity type, amount)
+✅ CSV export downloads properly
+✅ Top Stories generates insights
+✅ Comparison mode works side-by-side
+✅ Upload works with PostgreSQL
+
 ## Next Steps
 
-### Option A: Deploy to Vercel Now
-If you want to deploy immediately:
+### For February 2025 Disclosure Period
 
-1. **Create Vercel account** at https://vercel.com/signup
-2. **Create PostgreSQL database** in Vercel Storage
-3. **Run migration**:
-   ```bash
-   export POSTGRES_URL="your-postgres-url"
-   python migrate_to_postgres.py
-   ```
-4. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
+When new AEC data drops in February:
 
-### Option B: Continue Sprint 4 Enhancements
-Additional features to implement:
+1. **Download** new CSV files from AEC transparency portal
+2. **Upload via Web Interface**:
+   - Go to "Explore Data" tab
+   - Click "Upload New Data"
+   - Select CSV file(s)
+   - System automatically validates and imports
+3. **Verify** data appears in search results
+4. **Generate** new Top Stories insights
+5. **Use Comparison Mode** to compare with previous years
 
-1. **Red flags filtering** (deferred from Sprint 1)
-   - First-time large donors (>$50K)
-   - Dark money indicators
-   - Associated entity pass-throughs
-   - High electoral spending
+### Potential Future Enhancements
 
-2. **Export functionality**
-   - CSV download of current view
-   - PDF reports for sharing
-   - Email notifications
+Additional features that could be implemented:
 
-3. **Visualizations**
+1. **Red Flags Dashboard**
+   - First-time large donors (>$50K) auto-detection
+   - Dark money indicators with visual alerts
+   - Associated entity pass-through tracking
+   - High electoral spending warnings
+
+2. **Advanced Visualizations**
    - Party vs Independent trend chart (line graph over time)
    - Dark money flow diagram (Sankey chart)
-   - Top donors evolution (sparklines)
+   - Top donors evolution with sparklines
+   - Interactive network graphs
 
-4. **Comparison mode**
-   - Side-by-side period comparison
-   - Highlight changes with ↑↓ arrows
-   - Year-over-year analysis
+3. **Enhanced Export**
+   - PDF reports with charts for media sharing
+   - Scheduled email digests
+   - Automated alerts for large donations
 
-5. **Mobile optimization**
-   - Responsive tables
-   - Touch-friendly filters
-   - Optimized for smaller screens
+4. **Mobile App**
+   - Native iOS/Android apps
+   - Push notifications
+   - Offline data access
 
 ## Technical Debt & Notes
 
@@ -222,26 +259,27 @@ Additional features to implement:
 
 **Estimated Cost**: $0/month for typical usage
 
-## Recommendations
+## How to Use
 
-### Immediate Next Steps
-1. **Test the enhanced search** - Try searching for "keldoulis" or "climate 200"
-2. **Test filters** - Filter by >$50K donations in 2025 election
-3. **Test upload** - Upload a sample AEC CSV
+### Quick Start Guide
 
-### Before Deployment
-1. **Create Vercel account** and set up PostgreSQL database
-2. **Run migration script** to transfer all 269k records
-3. **Test all endpoints** in production environment
-4. **Set environment variables** (POSTGRES_URL, SECRET_KEY)
+1. **Dashboard** - View summary statistics and key insights at a glance
+2. **Explore Data** tab - Use the global search or filters to find specific donors/recipients
+3. **Top Stories** button - View algorithmically generated highlights
+4. **Comparison Mode** toggle - Compare two different time periods side-by-side
+5. **Export Current View** - Download search results as CSV for further analysis
+6. **Upload New Data** - Import new AEC CSV files when disclosures drop
 
-### After Deployment
-1. **Share URL** with team members
-2. **Document** upload process for February disclosures
-3. **Monitor usage** via Vercel analytics dashboard
-4. **Plan Sprint 4** enhancements based on user feedback
+### Key Features to Try
+
+- **Search for a donor**: Try "Climate 200" or "Keldoulis"
+- **Filter by amount**: Click ">$50K" to see large donations
+- **Compare periods**: Toggle comparison mode and select 2025 vs 2022
+- **Top Stories**: Click "Top Stories" to see automated insights
+- **Export data**: After searching, click "Export Current View" to download CSV
 
 ---
 
-**Status**: Ready for deployment or Sprint 4 enhancements
+**Status**: ✅ PRODUCTION - Live and Operational
 **Last Updated**: 2026-01-09
+**Live URL**: https://aectransparencyreader.vercel.app
