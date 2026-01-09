@@ -728,10 +728,10 @@ def explore():
     # Map period values to database Event/Financial_Year names
     election_periods = {
         '2025': '2025 Federal Election',
-        '2022': '2022 Federal Election',
-        '2019': '2019 Federal Election',
-        '2016': '2016 Federal Election',
-        '2013': '2013 Federal Election',
+        '2022': '2022 Federal election',  # Note: lowercase 'e' in database
+        '2019': '2019 Federal election',  # Note: lowercase 'e' in database
+        '2016': '2016 Federal election',  # Note: lowercase 'e' in database
+        '2013': '2013 Federal election',  # Note: lowercase 'e' in database
         '2010': '2010 Federal election',  # Note: lowercase 'e' in database
         '2007': '2007 Federal Election'
     }
