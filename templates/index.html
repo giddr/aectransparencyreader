@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Australian Election Transparency</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">Australian Election Transparency</h1>
+            <div class="nav-links">
+                <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard', this); return false;">Dashboard</a>
+                <a href="#explore" class="nav-link" onclick="showSection('explore', this); return false;">Explore Data</a>
+                <a href="#about" class="nav-link" onclick="showSection('about', this); return false;">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="section active">
+        <div class="container">
+            <div class="page-header">
+                <h2>Election Funding Dashboard</h2>
+                <p class="subtitle">Explore political donations, party funding, and electoral spending</p>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <h3 id="total-donations">Loading...</h3>
+                        <p>Total Donations (2023-24)</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <h3 id="total-parties">Loading...</h3>
+                        <p>Political Parties</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3 id="total-donors">Loading...</h3>
+                        <p>Registered Donors</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h3 id="total-candidates">Loading...</h3>
+                        <p>Candidates (2025)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Insights -->
+            <div class="insights-section">
+                <div class="insight-card highlight">
+                    <div class="insight-icon">⚡</div>
+                    <div class="insight-content">
+                        <h3>2025 Election: Independent Surge</h3>
+                        <div class="insight-stats">
+                            <div class="stat-large">
+                                <span class="stat-value">97.8%</span>
+                                <span class="stat-label">to Independents</span>
+                            </div>
+                            <div class="stat-large">
+                                <span class="stat-value">$29.75M</span>
+                                <span class="stat-label">Total Donations</span>
+                            </div>
+                        </div>
+                        <p class="insight-description">
+                            The 2025 Federal Election shows an unprecedented shift: 97.8% of all donations went to independent candidates,
+                            totaling $29.75M. This marks a dramatic change from traditional party-dominated funding patterns.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="dashboard-grid">
+                <!-- Top Donors -->
+                <div class="dashboard-card large">
+                    <div class="card-header">
+                        <h3>Top Political Donors - 2025 Election</h3>
+                        <button onclick="refreshData('top-donors')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="top-donors-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Party Funding -->
+                <div class="dashboard-card large">
+                    <div class="card-header">
+                        <h3>Party Funding - 2023-24</h3>
+                        <button onclick="refreshData('party-funding')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="party-funding-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Donations -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Recent Large Donations</h3>
+                        <button onclick="refreshData('recent-donations')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="recent-donations-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Candidates -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Top Funded Candidates - 2025</h3>
+                        <button onclick="refreshData('top-candidates')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="top-candidates-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Third Party Spending -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Third Party Electoral Spending</h3>
+                        <button onclick="refreshData('third-party')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="third-party-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MP Donations -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Independent MPs - Donations</h3>
+                        <button onclick="refreshData('mp-donations')" class="refresh-btn">↻</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="mp-donations-content" class="table-container">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explore Data Section -->
+    <div id="explore-section" class="section">
+        <div class="container">
+            <div class="page-header">
+                <h2>Explore Election Data</h2>
+                <p class="subtitle">Search, filter, and analyze donation data with powerful tools</p>
+            </div>
+
+            <!-- Upload Data Section -->
+            <div class="upload-section" id="uploadSection" style="display: none;">
+                <div class="upload-card">
+                    <div class="card-header">
+                        <h3>📤 Upload New Data</h3>
+                        <button onclick="toggleUploadSection()" class="btn btn-secondary">Close</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-instructions">
+                            <p><strong>Upload AEC CSV files to update the database.</strong></p>
+                            <ul>
+                                <li>Supported formats: Election data, Annual returns</li>
+                                <li>Files must match AEC export format</li>
+                                <li>Data will be validated before import</li>
+                            </ul>
+                        </div>
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-icon">📁</div>
+                            <p class="upload-text">Drag & drop CSV file here, or click to select</p>
+                            <input type="file" id="fileInput" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
+                            <button onclick="document.getElementById('fileInput').click()" class="btn btn-primary">Choose File</button>
+                        </div>
+                        <div id="uploadProgress" class="upload-progress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="progressText">Uploading...</p>
+                        </div>
+                        <div id="uploadResult" class="upload-result" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Button (always visible) -->
+            <div class="upload-button-container">
+                <button onclick="toggleUploadSection()" class="btn btn-secondary">📤 Upload New Data</button>
+            </div>
+
+            <!-- Global Search -->
+            <div class="search-container">
+                <input type="text" id="globalSearch" placeholder="Search donors, recipients, parties, or entities..." class="search-input">
+                <div id="searchResults" class="search-results" style="display: none;"></div>
+            </div>
+
+            <!-- Filter Panels -->
+            <div class="filter-panels">
+                <!-- Time Period Filter -->
+                <div class="filter-card">
+                    <h3>Time Period</h3>
+                    <select id="filterPeriod" class="filter-select" onchange="applyFilters()">
+                        <option value="2025">2025 Election</option>
+                        <option value="2023-24">2023-24 Annual</option>
+                        <option value="2022">2022 Election</option>
+                        <option value="last-2-years">Last 2 Years</option>
+                        <option value="all-time">All Time</option>
+                    </select>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="compareMode" onchange="toggleCompare()">
+                        Compare two periods
+                    </label>
+                </div>
+
+                <!-- Entity Type Filter -->
+                <div class="filter-card">
+                    <h3>Entity Type</h3>
+                    <label class="filter-checkbox"><input type="checkbox" value="parties" checked onchange="applyFilters()"> Political Parties</label>
+                    <label class="filter-checkbox"><input type="checkbox" value="independents" checked onchange="applyFilters()"> Independents</label>
+                    <label class="filter-checkbox"><input type="checkbox" value="third-parties" checked onchange="applyFilters()"> Third Parties</label>
+                    <label class="filter-checkbox"><input type="checkbox" value="associated" checked onchange="applyFilters()"> Associated Entities</label>
+                </div>
+
+                <!-- Amount Range Filter -->
+                <div class="filter-card">
+                    <h3>Amount Range</h3>
+                    <div class="amount-presets">
+                        <button class="preset-btn" onclick="setAmountFilter(10000, this)">{">"} $10K</button>
+                        <button class="preset-btn" onclick="setAmountFilter(50000, this)">{">"} $50K</button>
+                        <button class="preset-btn" onclick="setAmountFilter(100000, this)">{">"} $100K</button>
+                        <button class="preset-btn" onclick="setAmountFilter(1000000, this)">{">"} $1M</button>
+                    </div>
+                    <input type="range" id="amountSlider" min="0" max="10000000" step="10000" value="0" oninput="applyFilters()">
+                    <div class="amount-display">Min: $<span id="amountValue">0</span></div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button onclick="showTopStories()" class="btn btn-primary">📊 Top Stories</button>
+                <button onclick="exportCurrentView()" class="btn btn-secondary">⬇ Export View</button>
+                <button onclick="shareFilters()" class="btn btn-secondary">🔗 Share Link</button>
+            </div>
+
+            <!-- Results Display -->
+            <div id="exploreResults" class="explore-results">
+                <div class="loading">Select filters or search to explore data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Section -->
+    <div id="about-section" class="section">
+        <div class="container">
+            <div class="page-header">
+                <h2>About This Project</h2>
+            </div>
+            <div class="about-content">
+                <div class="about-card">
+                    <h3>Data Source</h3>
+                    <p>All data is sourced from the Australian Electoral Commission (AEC) transparency register, covering election funding, political donations, and electoral expenditure.</p>
+                </div>
+                <div class="about-card">
+                    <h3>Database Overview</h3>
+                    <p><strong>25 tables</strong> with <strong>269,521 records</strong></p>
+                    <ul>
+                        <li>12 Election-specific tables</li>
+                        <li>13 Annual returns tables</li>
+                        <li>Data from 2004 to 2025</li>
+                    </ul>
+                </div>
+                <div class="about-card">
+                    <h3>Features</h3>
+                    <ul>
+                        <li>Real-time dashboard with key metrics</li>
+                        <li>Custom SQL query interface</li>
+                        <li>Export data to CSV</li>
+                        <li>Comprehensive search across all datasets</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Data: Australian Electoral Commission | Built with Flask & SQLite</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
