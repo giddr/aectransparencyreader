@@ -571,6 +571,8 @@ def search():
     all_transactions = []
 
     # Search in 2025 election donations
+    # Use ILIKE for case-insensitive search in PostgreSQL
+    like_op = 'ILIKE' if USE_POSTGRES else 'LIKE'
     sql_2025 = f"""
         SELECT
             Donor_Name as Donor,
@@ -580,7 +582,7 @@ def search():
             '2025 Federal Election' as Period,
             'Election Donation' as Type
         FROM election_Donor_Donations_Made
-        WHERE (Donor_Name LIKE '%{query}%' OR Donated_To LIKE '%{query}%')
+        WHERE (Donor_Name {like_op} '%{query}%' OR Donated_To {like_op} '%{query}%')
             AND Event = '2025 Federal Election'
         ORDER BY Donated_To_Gift_Value DESC
         LIMIT 50
@@ -599,7 +601,7 @@ def search():
             '2022 Federal Election' as Period,
             'Election Donation' as Type
         FROM election_Donor_Donations_Made
-        WHERE (Donor_Name LIKE '%{query}%' OR Donated_To LIKE '%{query}%')
+        WHERE (Donor_Name {like_op} '%{query}%' OR Donated_To {like_op} '%{query}%')
             AND Event = '2022 Federal Election'
         ORDER BY Donated_To_Gift_Value DESC
         LIMIT 50
@@ -618,7 +620,7 @@ def search():
             Financial_Year as Period,
             'Annual Donation' as Type
         FROM annual_Donations_Made
-        WHERE (Donor_Name LIKE '%{query}%' OR Donation_Made_To LIKE '%{query}%')
+        WHERE (Donor_Name {like_op} '%{query}%' OR Donation_Made_To {like_op} '%{query}%')
             AND Financial_Year = '2023-24'
         ORDER BY Value DESC
         LIMIT 50
