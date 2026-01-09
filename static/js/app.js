@@ -533,10 +533,169 @@ function displayExploreResults(data) {
 // Toggle compare mode
 function toggleCompare() {
     const compareCheckbox = document.getElementById('compareMode');
+    const resultsContainer = document.getElementById('exploreResults');
+
     if (compareCheckbox && compareCheckbox.checked) {
-        // TODO: Implement comparison view
-        console.log('Compare mode enabled');
+        // Show comparison interface
+        resultsContainer.innerHTML = `
+            <div style="margin-bottom: 2rem;">
+                <h2 style="margin: 0 0 1rem 0; color: var(--text-primary);">Compare Time Periods</h2>
+                <p style="color: var(--text-secondary);">Compare donation data side-by-side across different election cycles</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">Period A</label>
+                    <select id="comparePeriodA" style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">
+                        <option value="2025">2025 Federal Election</option>
+                        <option value="2022">2022 Federal Election</option>
+                        <option value="2023-24">2023-24 Annual Returns</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">Period B</label>
+                    <select id="comparePeriodB" style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">
+                        <option value="2025">2025 Federal Election</option>
+                        <option value="2022" selected>2022 Federal Election</option>
+                        <option value="2023-24">2023-24 Annual Returns</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="runComparison()" style="padding: 0.75rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 500; cursor: pointer; margin-bottom: 2rem;">
+                Run Comparison
+            </button>
+
+            <div id="comparisonResults"></div>
+        `;
+    } else {
+        // Reset to default view
+        resultsContainer.innerHTML = '<div class="loading">Use filters or search to explore data...</div>';
     }
+}
+
+// Run comparison
+async function runComparison() {
+    const periodA = document.getElementById('comparePeriodA').value;
+    const periodB = document.getElementById('comparePeriodB').value;
+    const resultsDiv = document.getElementById('comparisonResults');
+
+    resultsDiv.innerHTML = '<div class="loading">Comparing periods...</div>';
+
+    try {
+        // Fetch data for both periods
+        const [responseA, responseB] = await Promise.all([
+            fetch(`/api/explore?period=${periodA}`),
+            fetch(`/api/explore?period=${periodB}`)
+        ]);
+
+        const dataA = await responseA.json();
+        const dataB = await responseB.json();
+
+        if (dataA.success && dataB.success) {
+            displayComparison(periodA, dataA, periodB, dataB);
+        } else {
+            resultsDiv.innerHTML = '<div class="loading">Error loading comparison data</div>';
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = '<div class="loading">Error running comparison</div>';
+        console.error('Comparison error:', error);
+    }
+}
+
+// Display comparison results
+function displayComparison(periodA, dataA, periodB, dataB) {
+    const resultsDiv = document.getElementById('comparisonResults');
+
+    // Calculate summary statistics
+    const totalA = dataA.data.reduce((sum, row) => sum + (row.Amount || 0), 0);
+    const totalB = dataB.data.reduce((sum, row) => sum + (row.Amount || 0), 0);
+    const countA = dataA.data.length;
+    const countB = dataB.data.length;
+
+    const totalChange = ((totalA - totalB) / totalB) * 100;
+    const countChange = ((countA - countB) / countB) * 100;
+
+    let html = '';
+
+    // Summary comparison cards
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">';
+
+    // Period A summary
+    html += '<div style="padding: 1.5rem; background: var(--bg-color); border-radius: 0.5rem; border-left: 4px solid #667eea;">';
+    html += `<h3 style="margin: 0 0 1rem 0; color: var(--text-primary);">${getPeriodName(periodA)}</h3>`;
+    html += `<div style="font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">${formatCurrency(totalA)}</div>`;
+    html += `<div style="color: var(--text-secondary);">${countA.toLocaleString()} transactions</div>`;
+    html += '</div>';
+
+    // Period B summary
+    html += '<div style="padding: 1.5rem; background: var(--bg-color); border-radius: 0.5rem; border-left: 4px solid #764ba2;">';
+    html += `<h3 style="margin: 0 0 1rem 0; color: var(--text-primary);">${getPeriodName(periodB)}</h3>`;
+    html += `<div style="font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">${formatCurrency(totalB)}</div>`;
+    html += `<div style="color: var(--text-secondary);">${countB.toLocaleString()} transactions</div>`;
+    html += '</div>';
+
+    html += '</div>';
+
+    // Change indicators
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">';
+
+    html += '<div style="padding: 1rem; background: var(--bg-color); border-radius: 0.5rem; text-align: center;">';
+    html += `<div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Total Amount Change</div>`;
+    const totalColor = totalChange > 0 ? '#10b981' : '#ef4444';
+    html += `<div style="font-size: 1.5rem; font-weight: 700; color: ${totalColor};">${totalChange > 0 ? '↑' : '↓'} ${Math.abs(totalChange).toFixed(1)}%</div>`;
+    html += '</div>';
+
+    html += '<div style="padding: 1rem; background: var(--bg-color); border-radius: 0.5rem; text-align: center;">';
+    html += `<div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Transaction Count Change</div>`;
+    const countColor = countChange > 0 ? '#10b981' : '#ef4444';
+    html += `<div style="font-size: 1.5rem; font-weight: 700; color: ${countColor};">${countChange > 0 ? '↑' : '↓'} ${Math.abs(countChange).toFixed(1)}%</div>`;
+    html += '</div>';
+
+    html += '</div>';
+
+    // Side-by-side tables (top 10 from each)
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">';
+
+    // Period A top 10
+    html += '<div>';
+    html += `<h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">Top 10 - ${getPeriodName(periodA)}</h4>`;
+    html += '<table style="width: 100%;"><thead><tr><th>Name</th><th>Amount</th></tr></thead><tbody>';
+    dataA.data.slice(0, 10).forEach(row => {
+        html += '<tr>';
+        html += `<td>${escapeHtml(row.Name || '')}</td>`;
+        html += `<td>${formatCurrency(row.Amount)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div>';
+
+    // Period B top 10
+    html += '<div>';
+    html += `<h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">Top 10 - ${getPeriodName(periodB)}</h4>`;
+    html += '<table style="width: 100%;"><thead><tr><th>Name</th><th>Amount</th></tr></thead><tbody>';
+    dataB.data.slice(0, 10).forEach(row => {
+        html += '<tr>';
+        html += `<td>${escapeHtml(row.Name || '')}</td>`;
+        html += `<td>${formatCurrency(row.Amount)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div>';
+
+    html += '</div>';
+
+    resultsDiv.innerHTML = html;
+}
+
+// Get period display name
+function getPeriodName(period) {
+    const names = {
+        '2025': '2025 Federal Election',
+        '2022': '2022 Federal Election',
+        '2023-24': '2023-24 Annual Returns'
+    };
+    return names[period] || period;
 }
 
 // Set amount filter
