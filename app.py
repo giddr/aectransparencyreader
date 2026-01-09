@@ -175,13 +175,61 @@ def get_db_connection():
         conn.row_factory = sqlite3.Row
         return conn
 
+def quote_identifiers_for_postgres(sql):
+    """Quote table and column names in SQL for PostgreSQL case-sensitivity"""
+    if not USE_POSTGRES:
+        return sql
+
+    # List of all table names that need quoting
+    tables = [
+        'election_Donor_Donations_Made', 'election_Donor_Donations_Received',
+        'election_Donor_Return', 'election_Media_Advertisement_Details',
+        'election_Media_Returns', 'election_Senate_Groups_and_Candidate_Return_Summary',
+        'election_Senate_Groups_and_Candidate_Donations', 'election_Senate_Groups_and_Candidate_Expenses',
+        'election_Senate_Groups_and_Candidate_Discretionary_Benefits',
+        'election_Third_Party_Return_Donations_Made', 'election_Third_Party_Return_Donations_Received',
+        'election_Third_Party_Return_Expenditure',
+        'annual_Donations_Made', 'annual_Donor_Donations_Received', 'annual_Donor_Returns',
+        'annual_Party_Returns', 'annual_MemberOfParliamentReturns',
+        'annual_Significant_Third_Party_Returns', 'annual_Third_Party_Returns',
+        'annual_Third_Party_Donations_Received', 'annual_Associated_Entity_Returns',
+        'annual_Capital_Contributions', 'annual_Detailed_Debts',
+        'annual_Detailed_Discretionary_Benefits', 'annual_Detailed_Receipts'
+    ]
+
+    # Common column names that need quoting (have mixed case with underscores)
+    columns = [
+        'Event', 'Name', 'Total_Receipts', 'Total_Payments', 'Total_Debts', 'Financial_Year',
+        'Donor_Name', 'Donor_Code', 'Donated_To', 'Donated_To_Gift_Value', 'Donated_To_Date_Of_Gift',
+        'Donation_Made_To', 'Value', 'Date', 'Party_Name', 'Electorate_Name',
+        'Total_Gift_Value', 'Number_Of_Donors', 'Total_Electoral_Expenditure',
+        'Total_Donations_Received', 'Number_of_Donors', 'Total_Donations_Made',
+        'Electoral_Expenditure', 'Advertiser', 'Advertiser_Type', 'Amount'
+    ]
+
+    # Replace table names
+    for table in tables:
+        sql = sql.replace(f' {table}', f' "{table}"')
+        sql = sql.replace(f'FROM {table}', f'FROM "{table}"')
+        sql = sql.replace(f'from {table}', f'from "{table}"')
+
+    # Replace column names (need to be careful not to quote string literals)
+    import re
+    for column in columns:
+        # Quote column names that appear after SELECT, WHERE, GROUP BY, ORDER BY
+        # But not inside string literals (single quotes)
+        sql = re.sub(r'\b' + column + r'\b(?![^\']*\'(?:[^\']*\'[^\']*\')*[^\']*$)', f'"{column}"', sql)
+
+    return sql
+
 def execute_query(sql):
     """Execute SQL query and return results (SQLite or PostgreSQL)"""
     try:
         conn = get_db_connection()
 
         if USE_POSTGRES:
-            # PostgreSQL execution
+            # PostgreSQL execution - quote identifiers for case sensitivity
+            sql = quote_identifiers_for_postgres(sql)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute(sql)
 
