@@ -631,6 +631,78 @@ def search():
         }
     })
 
+@app.route('/api/autocomplete')
+def autocomplete():
+    """Get autocomplete suggestions for donor/recipient names"""
+    query = request.args.get('q', '').strip()
+
+    if not query or len(query) < 2:
+        return jsonify({'success': True, 'suggestions': []})
+
+    # Use ILIKE for PostgreSQL, LIKE for SQLite
+    like_op = 'ILIKE' if USE_POSTGRES else 'LIKE'
+
+    suggestions = []
+
+    # Get unique donor names from election donations
+    sql_election_donors = f"""
+        SELECT DISTINCT Donor_Name as name
+        FROM election_Donor_Donations_Made
+        WHERE Donor_Name {like_op} '%{query}%'
+        LIMIT 10
+    """
+    result_election_donors = execute_query(sql_election_donors)
+    if result_election_donors['success'] and result_election_donors['data']:
+        suggestions.extend([{'name': r['name'], 'type': 'Donor'} for r in result_election_donors['data'] if r['name']])
+
+    # Get unique recipient names from election donations
+    sql_election_recipients = f"""
+        SELECT DISTINCT Donated_To as name
+        FROM election_Donor_Donations_Made
+        WHERE Donated_To {like_op} '%{query}%'
+        LIMIT 10
+    """
+    result_election_recipients = execute_query(sql_election_recipients)
+    if result_election_recipients['success'] and result_election_recipients['data']:
+        suggestions.extend([{'name': r['name'], 'type': 'Recipient'} for r in result_election_recipients['data'] if r['name']])
+
+    # Get unique donor names from annual returns
+    sql_annual_donors = f"""
+        SELECT DISTINCT Donor_Name as name
+        FROM annual_Donations_Made
+        WHERE Donor_Name {like_op} '%{query}%'
+        LIMIT 10
+    """
+    result_annual_donors = execute_query(sql_annual_donors)
+    if result_annual_donors['success'] and result_annual_donors['data']:
+        suggestions.extend([{'name': r['name'], 'type': 'Donor'} for r in result_annual_donors['data'] if r['name']])
+
+    # Get unique recipient names from annual returns
+    sql_annual_recipients = f"""
+        SELECT DISTINCT Donation_Made_To as name
+        FROM annual_Donations_Made
+        WHERE Donation_Made_To {like_op} '%{query}%'
+        LIMIT 10
+    """
+    result_annual_recipients = execute_query(sql_annual_recipients)
+    if result_annual_recipients['success'] and result_annual_recipients['data']:
+        suggestions.extend([{'name': r['name'], 'type': 'Recipient'} for r in result_annual_recipients['data'] if r['name']])
+
+    # Remove duplicates and limit to 15 suggestions
+    seen = set()
+    unique_suggestions = []
+    for s in suggestions:
+        if s['name'] not in seen:
+            seen.add(s['name'])
+            unique_suggestions.append(s)
+            if len(unique_suggestions) >= 15:
+                break
+
+    return jsonify({
+        'success': True,
+        'suggestions': unique_suggestions
+    })
+
 @app.route('/api/explore')
 def explore():
     """Explore data with filters"""

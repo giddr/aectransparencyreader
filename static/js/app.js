@@ -314,11 +314,23 @@ let currentFilters = {
     redFlags: []
 };
 
-// Global search with debouncing
+// Global search with debouncing and autocomplete
 function setupGlobalSearch() {
     const searchInput = document.getElementById('globalSearch');
+    const autocompleteContainer = document.getElementById('autocompleteResults');
 
     if (!searchInput) return;
+
+    // Create autocomplete container if it doesn't exist
+    if (!autocompleteContainer) {
+        const container = document.createElement('div');
+        container.id = 'autocompleteResults';
+        container.className = 'autocomplete-results';
+        searchInput.parentNode.appendChild(container);
+    }
+
+    let currentSuggestions = [];
+    let selectedIndex = -1;
 
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -329,7 +341,8 @@ function setupGlobalSearch() {
         }
 
         if (query.length < 2) {
-            // Show default message
+            // Hide autocomplete and show default message
+            hideAutocomplete();
             const resultsContainer = document.getElementById('exploreResults');
             if (resultsContainer) {
                 resultsContainer.innerHTML = '<div class="loading">Type at least 2 characters to search...</div>';
@@ -337,11 +350,118 @@ function setupGlobalSearch() {
             return;
         }
 
-        // Debounce search
+        // Fetch autocomplete suggestions
         searchTimeout = setTimeout(() => {
-            performGlobalSearch(query);
-        }, 300);
+            fetchAutocompleteSuggestions(query);
+        }, 200);
     });
+
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', (e) => {
+        const container = document.getElementById('autocompleteResults');
+        if (!container || container.style.display === 'none') return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
+            highlightSuggestion(selectedIndex);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            highlightSuggestion(selectedIndex);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && currentSuggestions[selectedIndex]) {
+                selectSuggestion(currentSuggestions[selectedIndex].name);
+            } else {
+                performGlobalSearch(searchInput.value.trim());
+                hideAutocomplete();
+            }
+        } else if (e.key === 'Escape') {
+            hideAutocomplete();
+        }
+    });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !document.getElementById('autocompleteResults')?.contains(e.target)) {
+            hideAutocomplete();
+        }
+    });
+
+    async function fetchAutocompleteSuggestions(query) {
+        try {
+            const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (data.success && data.suggestions && data.suggestions.length > 0) {
+                currentSuggestions = data.suggestions;
+                selectedIndex = -1;
+                displayAutocompleteSuggestions(data.suggestions);
+            } else {
+                hideAutocomplete();
+            }
+        } catch (error) {
+            console.error('Autocomplete error:', error);
+            hideAutocomplete();
+        }
+    }
+
+    function displayAutocompleteSuggestions(suggestions) {
+        const container = document.getElementById('autocompleteResults');
+        if (!container) return;
+
+        let html = '';
+        suggestions.forEach((suggestion, index) => {
+            const typeClass = suggestion.type === 'Donor' ? 'donor-badge' : 'recipient-badge';
+            html += `<div class="autocomplete-item" data-index="${index}" data-name="${escapeHtml(suggestion.name)}">`;
+            html += `<span class="suggestion-name">${escapeHtml(suggestion.name)}</span>`;
+            html += `<span class="suggestion-type ${typeClass}">${suggestion.type}</span>`;
+            html += '</div>';
+        });
+
+        container.innerHTML = html;
+        container.style.display = 'block';
+
+        // Add click handlers
+        container.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const name = e.currentTarget.getAttribute('data-name');
+                selectSuggestion(name);
+            });
+        });
+    }
+
+    function highlightSuggestion(index) {
+        const container = document.getElementById('autocompleteResults');
+        if (!container) return;
+
+        const items = container.querySelectorAll('.autocomplete-item');
+        items.forEach((item, i) => {
+            if (i === index) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    function selectSuggestion(name) {
+        searchInput.value = name;
+        hideAutocomplete();
+        performGlobalSearch(name);
+    }
+
+    function hideAutocomplete() {
+        const container = document.getElementById('autocompleteResults');
+        if (container) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        }
+        currentSuggestions = [];
+        selectedIndex = -1;
+    }
 }
 
 // Perform global search
