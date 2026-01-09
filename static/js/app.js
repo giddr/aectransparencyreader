@@ -350,10 +350,17 @@ function setupGlobalSearch() {
             return;
         }
 
-        // Fetch autocomplete suggestions
+        // Show loading indicator immediately
+        const resultsContainer = document.getElementById('exploreResults');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+        }
+
+        // Fetch autocomplete suggestions AND trigger search automatically (100ms debounce)
         searchTimeout = setTimeout(() => {
             fetchAutocompleteSuggestions(query);
-        }, 200);
+            performGlobalSearch(query);
+        }, 100);
     });
 
     // Handle keyboard navigation
@@ -667,17 +674,43 @@ function toggleCompare() {
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">Period A</label>
                     <select id="comparePeriodA" style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">
-                        <option value="2025">2025 Federal Election</option>
-                        <option value="2022">2022 Federal Election</option>
-                        <option value="2023-24">2023-24 Annual Returns</option>
+                        <optgroup label="Federal Elections">
+                            <option value="2025">2025 Federal Election</option>
+                            <option value="2022">2022 Federal Election</option>
+                            <option value="2019">2019 Federal Election</option>
+                            <option value="2016">2016 Federal Election</option>
+                            <option value="2013">2013 Federal Election</option>
+                            <option value="2010">2010 Federal Election</option>
+                            <option value="2007">2007 Federal Election</option>
+                        </optgroup>
+                        <optgroup label="Annual Returns">
+                            <option value="2023-24">2023-24 Financial Year</option>
+                            <option value="2022-23">2022-23 Financial Year</option>
+                            <option value="2021-22">2021-22 Financial Year</option>
+                            <option value="2020-21">2020-21 Financial Year</option>
+                            <option value="2019-20">2019-20 Financial Year</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">Period B</label>
                     <select id="comparePeriodB" style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">
-                        <option value="2025">2025 Federal Election</option>
-                        <option value="2022" selected>2022 Federal Election</option>
-                        <option value="2023-24">2023-24 Annual Returns</option>
+                        <optgroup label="Federal Elections">
+                            <option value="2025">2025 Federal Election</option>
+                            <option value="2022" selected>2022 Federal Election</option>
+                            <option value="2019">2019 Federal Election</option>
+                            <option value="2016">2016 Federal Election</option>
+                            <option value="2013">2013 Federal Election</option>
+                            <option value="2010">2010 Federal Election</option>
+                            <option value="2007">2007 Federal Election</option>
+                        </optgroup>
+                        <optgroup label="Annual Returns">
+                            <option value="2023-24">2023-24 Financial Year</option>
+                            <option value="2022-23">2022-23 Financial Year</option>
+                            <option value="2021-22">2021-22 Financial Year</option>
+                            <option value="2020-21">2020-21 Financial Year</option>
+                            <option value="2019-20">2019-20 Financial Year</option>
+                        </optgroup>
                     </select>
                 </div>
             </div>
@@ -811,9 +844,23 @@ function displayComparison(periodA, dataA, periodB, dataB) {
 // Get period display name
 function getPeriodName(period) {
     const names = {
+        // Federal Elections
         '2025': '2025 Federal Election',
         '2022': '2022 Federal Election',
-        '2023-24': '2023-24 Annual Returns'
+        '2019': '2019 Federal Election',
+        '2016': '2016 Federal Election',
+        '2013': '2013 Federal Election',
+        '2010': '2010 Federal Election',
+        '2007': '2007 Federal Election',
+        // Annual Returns
+        '2023-24': '2023-24 Financial Year',
+        '2022-23': '2022-23 Financial Year',
+        '2021-22': '2021-22 Financial Year',
+        '2020-21': '2020-21 Financial Year',
+        '2019-20': '2019-20 Financial Year',
+        // Aggregates
+        'last-2-years': 'Last 2 Years',
+        'all-time': 'All Time'
     };
     return names[period] || period;
 }

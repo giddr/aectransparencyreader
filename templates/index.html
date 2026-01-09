@@ -223,11 +223,26 @@
                 <div class="filter-card">
                     <h3>Time Period</h3>
                     <select id="filterPeriod" class="filter-select" onchange="applyFilters()">
-                        <option value="2025">2025 Election</option>
-                        <option value="2023-24">2023-24 Annual</option>
-                        <option value="2022">2022 Election</option>
-                        <option value="last-2-years">Last 2 Years</option>
-                        <option value="all-time">All Time</option>
+                        <optgroup label="Federal Elections">
+                            <option value="2025">2025 Federal Election</option>
+                            <option value="2022">2022 Federal Election</option>
+                            <option value="2019">2019 Federal Election</option>
+                            <option value="2016">2016 Federal Election</option>
+                            <option value="2013">2013 Federal Election</option>
+                            <option value="2010">2010 Federal Election</option>
+                            <option value="2007">2007 Federal Election</option>
+                        </optgroup>
+                        <optgroup label="Annual Returns">
+                            <option value="2023-24">2023-24 Financial Year</option>
+                            <option value="2022-23">2022-23 Financial Year</option>
+                            <option value="2021-22">2021-22 Financial Year</option>
+                            <option value="2020-21">2020-21 Financial Year</option>
+                            <option value="2019-20">2019-20 Financial Year</option>
+                        </optgroup>
+                        <optgroup label="Custom Ranges">
+                            <option value="last-2-years">Last 2 Years</option>
+                            <option value="all-time">All Time</option>
+                        </optgroup>
                     </select>
                     <label class="filter-checkbox">
                         <input type="checkbox" id="compareMode" onchange="toggleCompare()">

@@ -644,59 +644,73 @@ def autocomplete():
 
     suggestions = []
 
+    # Remove duplicates and limit to 15 suggestions
+    seen = set()
+    unique_suggestions = []
+
     # Get unique donor names from election donations
     sql_election_donors = f"""
         SELECT DISTINCT Donor_Name as name
         FROM election_Donor_Donations_Made
         WHERE Donor_Name {like_op} '%{query}%'
-        LIMIT 10
+        LIMIT 5
     """
     result_election_donors = execute_query(sql_election_donors)
     if result_election_donors['success'] and result_election_donors['data']:
-        suggestions.extend([{'name': r['name'], 'type': 'Donor'} for r in result_election_donors['data'] if r['name']])
+        for r in result_election_donors['data']:
+            if r['name'] and r['name'] not in seen:
+                seen.add(r['name'])
+                unique_suggestions.append({'name': r['name'], 'type': 'Donor'})
+                if len(unique_suggestions) >= 15:
+                    return jsonify({'success': True, 'suggestions': unique_suggestions})
 
     # Get unique recipient names from election donations
     sql_election_recipients = f"""
         SELECT DISTINCT Donated_To as name
         FROM election_Donor_Donations_Made
         WHERE Donated_To {like_op} '%{query}%'
-        LIMIT 10
+        LIMIT 5
     """
     result_election_recipients = execute_query(sql_election_recipients)
     if result_election_recipients['success'] and result_election_recipients['data']:
-        suggestions.extend([{'name': r['name'], 'type': 'Recipient'} for r in result_election_recipients['data'] if r['name']])
+        for r in result_election_recipients['data']:
+            if r['name'] and r['name'] not in seen:
+                seen.add(r['name'])
+                unique_suggestions.append({'name': r['name'], 'type': 'Recipient'})
+                if len(unique_suggestions) >= 15:
+                    return jsonify({'success': True, 'suggestions': unique_suggestions})
 
     # Get unique donor names from annual returns
     sql_annual_donors = f"""
         SELECT DISTINCT Donor_Name as name
         FROM annual_Donations_Made
         WHERE Donor_Name {like_op} '%{query}%'
-        LIMIT 10
+        LIMIT 5
     """
     result_annual_donors = execute_query(sql_annual_donors)
     if result_annual_donors['success'] and result_annual_donors['data']:
-        suggestions.extend([{'name': r['name'], 'type': 'Donor'} for r in result_annual_donors['data'] if r['name']])
+        for r in result_annual_donors['data']:
+            if r['name'] and r['name'] not in seen:
+                seen.add(r['name'])
+                unique_suggestions.append({'name': r['name'], 'type': 'Donor'})
+                if len(unique_suggestions) >= 15:
+                    return jsonify({'success': True, 'suggestions': unique_suggestions})
 
     # Get unique recipient names from annual returns
     sql_annual_recipients = f"""
         SELECT DISTINCT Donation_Made_To as name
         FROM annual_Donations_Made
         WHERE Donation_Made_To {like_op} '%{query}%'
-        LIMIT 10
+        LIMIT 5
     """
     result_annual_recipients = execute_query(sql_annual_recipients)
     if result_annual_recipients['success'] and result_annual_recipients['data']:
-        suggestions.extend([{'name': r['name'], 'type': 'Recipient'} for r in result_annual_recipients['data'] if r['name']])
-
-    # Remove duplicates and limit to 15 suggestions
-    seen = set()
-    unique_suggestions = []
-    for s in suggestions:
-        if s['name'] not in seen:
-            seen.add(s['name'])
-            unique_suggestions.append(s)
-            if len(unique_suggestions) >= 15:
-                break
+        for r in result_annual_recipients['data']:
+            if r['name'] and r['name'] not in seen:
+                seen.add(r['name'])
+                unique_suggestions.append({'name': r['name'], 'type': 'Recipient'})
+                if len(unique_suggestions) >= 15:
+                    return jsonify({'success': True, 'suggestions': unique_suggestions})
 
     return jsonify({
         'success': True,
@@ -711,10 +725,30 @@ def explore():
     min_amount = int(request.args.get('minAmount', 0))
     red_flags = request.args.get('redFlags', '').split(',') if request.args.get('redFlags') else []
 
+    # Map period values to database Event/Financial_Year names
+    election_periods = {
+        '2025': '2025 Federal Election',
+        '2022': '2022 Federal Election',
+        '2019': '2019 Federal Election',
+        '2016': '2016 Federal Election',
+        '2013': '2013 Federal Election',
+        '2010': '2010 Federal election',  # Note: lowercase 'e' in database
+        '2007': '2007 Federal Election'
+    }
+
+    annual_periods = {
+        '2023-24': '2023-24',
+        '2022-23': '2022-23',
+        '2021-22': '2021-22',
+        '2020-21': '2020-21',
+        '2019-20': '2019-20'
+    }
+
     # Build base query based on period
-    if period == '2025':
-        # 2025 Federal Election data
-        sql = """
+    if period in election_periods:
+        # Federal Election data
+        event_name = election_periods[period]
+        sql = f"""
             SELECT
                 Donor_Name as Name,
                 Donated_To as Recipient,
@@ -722,7 +756,7 @@ def explore():
                 Donated_To_Date_Of_Gift as Date,
                 'Donation' as Type
             FROM election_Donor_Donations_Made
-            WHERE Event = '2025 Federal Election'
+            WHERE Event = '{event_name}'
         """
 
         # Apply amount filter
@@ -731,9 +765,10 @@ def explore():
 
         sql += " ORDER BY Donated_To_Gift_Value DESC LIMIT 100"
 
-    elif period == '2023-24':
+    elif period in annual_periods:
         # Annual returns data
-        sql = """
+        fy = annual_periods[period]
+        sql = f"""
             SELECT
                 Donor_Name as Name,
                 Donation_Made_To as Recipient,
@@ -741,7 +776,7 @@ def explore():
                 Date,
                 'Annual Donation' as Type
             FROM annual_Donations_Made
-            WHERE Financial_Year = '2023-24'
+            WHERE Financial_Year = '{fy}'
         """
 
         # Apply amount filter
@@ -750,27 +785,72 @@ def explore():
 
         sql += " ORDER BY Value DESC LIMIT 100"
 
-    elif period == '2022':
-        # 2022 Federal Election data
+    elif period == 'last-2-years':
+        # Last 2 years: combine recent annual returns and elections
         sql = """
+            SELECT
+                Donor_Name as Name,
+                Donation_Made_To as Recipient,
+                Value as Amount,
+                Date,
+                'Annual Donation' as Type
+            FROM annual_Donations_Made
+            WHERE Financial_Year IN ('2023-24', '2022-23')
+        """
+
+        if min_amount > 0:
+            sql += f" AND Value >= {min_amount}"
+
+        sql += """
+            UNION ALL
             SELECT
                 Donor_Name as Name,
                 Donated_To as Recipient,
                 Donated_To_Gift_Value as Amount,
                 Donated_To_Date_Of_Gift as Date,
-                'Donation' as Type
+                'Election Donation' as Type
             FROM election_Donor_Donations_Made
-            WHERE Event = '2022 Federal Election'
+            WHERE Event IN ('2025 Federal Election', '2022 Federal Election')
         """
 
-        # Apply amount filter
         if min_amount > 0:
             sql += f" AND Donated_To_Gift_Value >= {min_amount}"
 
-        sql += " ORDER BY Donated_To_Gift_Value DESC LIMIT 100"
+        sql += " ORDER BY Amount DESC LIMIT 100"
+
+    elif period == 'all-time':
+        # All time: everything
+        sql = """
+            SELECT
+                Donor_Name as Name,
+                Donation_Made_To as Recipient,
+                Value as Amount,
+                Date,
+                'Annual Donation' as Type
+            FROM annual_Donations_Made
+        """
+
+        if min_amount > 0:
+            sql += f" WHERE Value >= {min_amount}"
+
+        sql += """
+            UNION ALL
+            SELECT
+                Donor_Name as Name,
+                Donated_To as Recipient,
+                Donated_To_Gift_Value as Amount,
+                Donated_To_Date_Of_Gift as Date,
+                'Election Donation' as Type
+            FROM election_Donor_Donations_Made
+        """
+
+        if min_amount > 0:
+            sql += f" WHERE Donated_To_Gift_Value >= {min_amount}"
+
+        sql += " ORDER BY Amount DESC LIMIT 100"
 
     else:
-        # Default to all donations with amount filter
+        # Default fallback
         sql = f"""
             SELECT
                 Donor_Name as Name,
