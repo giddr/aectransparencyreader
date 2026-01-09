@@ -745,7 +745,8 @@ def top_stories():
                                        'THE NATIONALS', 'THE GREENS')
         """
         result_2025 = execute_query(sql_2025_indep)
-        total_2025_indep = result_2025['data'][0]['total'] if result_2025['data'] else 0
+        total_2025_indep = result_2025.get('data', [{}])[0].get('total', 0) if result_2025.get('success') else 0
+        total_2025_indep = float(total_2025_indep) if total_2025_indep else 0
 
         sql_2022_indep = """
             SELECT SUM(Donated_To_Gift_Value) as total
@@ -755,7 +756,8 @@ def top_stories():
                                        'THE NATIONALS', 'THE GREENS')
         """
         result_2022 = execute_query(sql_2022_indep)
-        total_2022_indep = result_2022['data'][0]['total'] if result_2022['data'] else 1  # Avoid division by zero
+        total_2022_indep = result_2022.get('data', [{}])[0].get('total', 1) if result_2022.get('success') else 1  # Avoid division by zero
+        total_2022_indep = float(total_2022_indep) if total_2022_indep else 1
 
         if total_2025_indep and total_2022_indep:
             pct_change = ((total_2025_indep - total_2022_indep) / total_2022_indep) * 100
@@ -784,14 +786,17 @@ def top_stories():
             LIMIT 1
         """
         result_new = execute_query(sql_new_donor)
-        if result_new['data']:
+        if result_new.get('success') and result_new.get('data'):
             donor = result_new['data'][0]
+            donor_name = donor.get('Donor_Name') or donor.get('donor_name')
+            total_donated = donor.get('total_donated') or donor.get('Total_Donated') or 0
+            total_donated = float(total_donated) if total_donated else 0
             stories.append({
                 'title': 'Largest New Donor',
-                'description': f'{donor["Donor_Name"]} donated ${donor["Total_Donated"]:,.0f} in their first appearance',
+                'description': f'{donor_name} donated ${total_donated:,.0f} in their first appearance',
                 'type': 'new_donor',
-                'donor': donor['Donor_Name'],
-                'amount': donor['Total_Donated']
+                'donor': donor_name,
+                'amount': total_donated
             })
 
         # Story 3: Most indebted party (2023-24 annual returns)
@@ -806,14 +811,17 @@ def top_stories():
             LIMIT 1
         """
         result_debt = execute_query(sql_debt)
-        if result_debt['data']:
+        if result_debt.get('success') and result_debt.get('data'):
             party = result_debt['data'][0]
+            party_name = party.get('Name') or party.get('name')
+            total_debts = party.get('Total_Debts') or party.get('total_debts') or 0
+            total_debts = float(total_debts) if total_debts else 0
             stories.append({
                 'title': 'Highest Party Debt',
-                'description': f'{party["Name"]} reported ${party["Total_Debts"]:,.0f} in debts for 2023-24',
+                'description': f'{party_name} reported ${total_debts:,.0f} in debts for 2023-24',
                 'type': 'debt',
-                'party': party['Name'],
-                'amount': party['Total_Debts']
+                'party': party_name,
+                'amount': total_debts
             })
 
         # Story 4: Dark money (highest third party spending without disclosure)
@@ -828,14 +836,17 @@ def top_stories():
             LIMIT 1
         """
         result_dark = execute_query(sql_dark)
-        if result_dark['data']:
+        if result_dark.get('success') and result_dark.get('data'):
             entity = result_dark['data'][0]
+            entity_name = entity.get('Name') or entity.get('name')
+            expenditure = entity.get('Total_Electoral_Expenditure') or entity.get('total_electoral_expenditure') or 0
+            expenditure = float(expenditure) if expenditure else 0
             stories.append({
                 'title': 'Highest Dark Money Spending',
-                'description': f'{entity["Name"]} spent ${entity["Total_Electoral_Expenditure"]:,.0f} on electoral activities',
+                'description': f'{entity_name} spent ${expenditure:,.0f} on electoral activities',
                 'type': 'dark_money',
-                'entity': entity['Name'],
-                'amount': entity['Total_Electoral_Expenditure']
+                'entity': entity_name,
+                'amount': expenditure
             })
 
         return jsonify({
