@@ -102,6 +102,7 @@
 - **GitHub**: https://github.com/giddr/aectransparencyreader
 - **Environment**: Production, Preview, Development configured
 - **Static Assets**: Properly served via @vercel/static
+- **PostgreSQL Case-Sensitivity**: Fixed with `quote_identifiers_for_postgres()` function to preserve mixed-case table and column names
 
 ### Testing Checklist
 ✅ Dashboard loads with summary cards
@@ -205,12 +206,12 @@ Additional features that could be implemented:
 - [x] Insights display correctly
 
 ### Production Testing (PostgreSQL)
-- [ ] Database migration completes successfully
-- [ ] All queries work with PostgreSQL
-- [ ] Upload works with PostgreSQL
-- [ ] Vercel deployment succeeds
-- [ ] All endpoints respond correctly
-- [ ] Static files load properly
+- [x] Database migration completes successfully
+- [x] All queries work with PostgreSQL (fixed case-sensitivity)
+- [x] Upload works with PostgreSQL
+- [x] Vercel deployment succeeds
+- [x] All endpoints respond correctly
+- [x] Static files load properly
 
 ## User Workflow
 
