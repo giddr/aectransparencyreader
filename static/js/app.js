@@ -562,10 +562,83 @@ function setAmountFilter(amount, buttonElement) {
 }
 
 // Show top stories
-function showTopStories() {
-    // TODO: Implement top stories view
-    console.log('Loading top stories...');
-    alert('Top Stories feature coming soon! This will show:\n\n• Biggest funding shifts\n• Largest new donors\n• Most indebted parties\n• Highest dark money spending');
+async function showTopStories() {
+    const resultsContainer = document.getElementById('exploreResults');
+
+    resultsContainer.innerHTML = '<div class="loading">Generating top stories...</div>';
+
+    try {
+        const response = await fetch('/api/top-stories');
+        const data = await response.json();
+
+        if (data.success && data.stories && data.stories.length > 0) {
+            displayTopStories(data.stories);
+        } else {
+            resultsContainer.innerHTML = '<div class="loading">No stories available</div>';
+        }
+    } catch (error) {
+        resultsContainer.innerHTML = '<div class="loading">Error loading top stories</div>';
+        console.error('Top stories error:', error);
+    }
+}
+
+// Display top stories
+function displayTopStories(stories) {
+    const resultsContainer = document.getElementById('exploreResults');
+
+    let html = '';
+    html += '<div style="margin-bottom: 2rem;">';
+    html += '<h2 style="margin: 0 0 1rem 0; color: var(--text-primary);">Top Stories</h2>';
+    html += '<p style="color: var(--text-secondary); margin: 0;">Algorithmic highlights from the election funding data</p>';
+    html += '</div>';
+
+    html += '<div style="display: grid; gap: 1.5rem;">';
+
+    stories.forEach((story, index) => {
+        // Story card
+        html += '<div style="padding: 1.5rem; background: var(--bg-color); border-radius: 0.5rem; border-left: 4px solid ';
+
+        // Color code by type
+        if (story.type === 'shift') {
+            html += '#3b82f6'; // Blue for shifts
+        } else if (story.type === 'new_donor') {
+            html += '#10b981'; // Green for new donors
+        } else if (story.type === 'debt') {
+            html += '#ef4444'; // Red for debt
+        } else if (story.type === 'dark_money') {
+            html += '#f59e0b'; // Orange for dark money
+        } else {
+            html += '#6b7280'; // Gray default
+        }
+
+        html += ';">';
+
+        // Story number
+        html += `<div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">STORY ${index + 1}</div>`;
+
+        // Story title
+        html += `<h3 style="margin: 0 0 0.75rem 0; font-size: 1.25rem; color: var(--text-primary);">${escapeHtml(story.title)}</h3>`;
+
+        // Story description
+        html += `<p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">${escapeHtml(story.description)}</p>`;
+
+        // Additional details
+        if (story.amount) {
+            html += `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.875rem; color: var(--text-secondary);">`;
+            html += `<strong style="color: var(--text-primary);">Amount:</strong> ${formatCurrency(story.amount)}`;
+            if (story.change !== undefined) {
+                const changeColor = story.change > 0 ? '#10b981' : '#ef4444';
+                html += ` <span style="color: ${changeColor};">(${story.change > 0 ? '+' : ''}${story.change.toFixed(1)}%)</span>`;
+            }
+            html += '</div>';
+        }
+
+        html += '</div>';
+    });
+
+    html += '</div>';
+
+    resultsContainer.innerHTML = html;
 }
 
 // Store current displayed data for export
