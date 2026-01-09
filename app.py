@@ -567,50 +567,31 @@ def search():
     if not query or len(query) < 2:
         return jsonify({'success': False, 'error': 'Search query must be at least 2 characters'})
 
-    # Search for detailed transactions across all periods
+    # Search for detailed transactions across ALL periods
     all_transactions = []
 
-    # Search in 2025 election donations
     # Use ILIKE for case-insensitive search in PostgreSQL
     like_op = 'ILIKE' if USE_POSTGRES else 'LIKE'
-    sql_2025 = f"""
+
+    # Search ALL election donations (all years) - sorted by amount to get most significant
+    sql_elections = f"""
         SELECT
             Donor_Name as Donor,
             Donated_To as Recipient,
             Donated_To_Gift_Value as Amount,
             Donated_To_Date_Of_Gift as Date,
-            '2025 Federal Election' as Period,
+            Event as Period,
             'Election Donation' as Type
         FROM election_Donor_Donations_Made
         WHERE (Donor_Name {like_op} '%{query}%' OR Donated_To {like_op} '%{query}%')
-            AND Event = '2025 Federal Election'
         ORDER BY Donated_To_Gift_Value DESC
-        LIMIT 50
+        LIMIT 200
     """
-    results_2025 = execute_query(sql_2025)
-    if results_2025['success'] and results_2025['data']:
-        all_transactions.extend(results_2025['data'])
+    results_elections = execute_query(sql_elections)
+    if results_elections['success'] and results_elections['data']:
+        all_transactions.extend(results_elections['data'])
 
-    # Search in 2022 election donations
-    sql_2022 = f"""
-        SELECT
-            Donor_Name as Donor,
-            Donated_To as Recipient,
-            Donated_To_Gift_Value as Amount,
-            Donated_To_Date_Of_Gift as Date,
-            '2022 Federal Election' as Period,
-            'Election Donation' as Type
-        FROM election_Donor_Donations_Made
-        WHERE (Donor_Name {like_op} '%{query}%' OR Donated_To {like_op} '%{query}%')
-            AND Event = '2022 Federal Election'
-        ORDER BY Donated_To_Gift_Value DESC
-        LIMIT 50
-    """
-    results_2022 = execute_query(sql_2022)
-    if results_2022['success'] and results_2022['data']:
-        all_transactions.extend(results_2022['data'])
-
-    # Search in annual donations (2023-24)
+    # Search ALL annual donations (all financial years) - sorted by amount to get most significant
     sql_annual = f"""
         SELECT
             Donor_Name as Donor,
@@ -618,12 +599,11 @@ def search():
             Value as Amount,
             Date,
             Financial_Year as Period,
-            'Annual Donation' as Type
+            'Annual Return' as Type
         FROM annual_Donations_Made
         WHERE (Donor_Name {like_op} '%{query}%' OR Donation_Made_To {like_op} '%{query}%')
-            AND Financial_Year = '2023-24'
         ORDER BY Value DESC
-        LIMIT 50
+        LIMIT 200
     """
     results_annual = execute_query(sql_annual)
     if results_annual['success'] and results_annual['data']:
@@ -637,9 +617,12 @@ def search():
     donors = set(t.get('Donor') for t in all_transactions if t.get('Donor'))
     recipients = set(t.get('Recipient') for t in all_transactions if t.get('Recipient'))
 
+    # Sort all transactions by amount (descending) to show most significant first
+    all_transactions.sort(key=lambda x: x.get('Amount') or 0, reverse=True)
+
     return jsonify({
         'success': True,
-        'transactions': all_transactions[:100],  # Limit to 100 transactions
+        'transactions': all_transactions[:200],  # Return up to 200 transactions
         'summary': {
             'total_transactions': transaction_count,
             'total_amount': total_amount,
