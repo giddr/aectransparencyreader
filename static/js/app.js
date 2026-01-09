@@ -403,12 +403,12 @@ function displaySearchTransactions(data) {
 
     transactions.forEach(txn => {
         html += '<tr>';
-        html += `<td>${escapeHtml(txn.Donor || '')}</td>`;
-        html += `<td>${escapeHtml(txn.Recipient || '')}</td>`;
-        html += `<td>${formatCurrency(txn.Amount)}</td>`;
-        html += `<td>${escapeHtml(txn.Date || '')}</td>`;
-        html += `<td>${escapeHtml(txn.Period || '')}</td>`;
-        html += `<td>${escapeHtml(txn.Type || '')}</td>`;
+        html += `<td>${escapeHtml(txn.donor || txn.Donor || '')}</td>`;
+        html += `<td>${escapeHtml(txn.recipient || txn.Recipient || '')}</td>`;
+        html += `<td>${formatCurrency(txn.Amount || txn.amount || 0)}</td>`;
+        html += `<td>${escapeHtml(txn.Date || txn.date || '')}</td>`;
+        html += `<td>${escapeHtml(txn.period || txn.Period || '')}</td>`;
+        html += `<td>${escapeHtml(txn.type || txn.Type || '')}</td>`;
         html += '</tr>';
     });
 
