@@ -314,6 +314,15 @@ let currentFilters = {
     redFlags: []
 };
 
+// Enhanced search state variables
+let sortState = {
+    column: 'Amount',  // Default sort by amount
+    direction: 'desc'  // 'asc' or 'desc'
+};
+let selectedRows = new Set();  // Store indices of selected rows
+let allTransactions = [];  // Store unfiltered transactions for search-within-search
+let currentQuery = '';  // Store original search query
+
 // Global search with debouncing and autocomplete
 function setupGlobalSearch() {
     const searchInput = document.getElementById('globalSearch');
@@ -471,19 +480,99 @@ function setupGlobalSearch() {
     }
 }
 
+// Parse search query to detect amount searches vs name searches
+function parseSearchQuery(query) {
+    // Detect if query is an amount search
+    // Patterns: >50000, <100000, 50000-100000, >=50000, <=100000
+
+    const greaterThanMatch = query.match(/^>=?(\d+)$/);
+    const lessThanMatch = query.match(/^<=?(\d+)$/);
+    const rangeMatch = query.match(/^(\d+)-(\d+)$/);
+
+    if (greaterThanMatch) {
+        return {
+            type: 'amount',
+            operator: 'gte',
+            value: parseInt(greaterThanMatch[1])
+        };
+    } else if (lessThanMatch) {
+        return {
+            type: 'amount',
+            operator: 'lte',
+            value: parseInt(lessThanMatch[1])
+        };
+    } else if (rangeMatch) {
+        return {
+            type: 'amount',
+            operator: 'range',
+            min: parseInt(rangeMatch[1]),
+            max: parseInt(rangeMatch[2])
+        };
+    } else {
+        return {
+            type: 'name',
+            value: query
+        };
+    }
+}
+
 // Perform global search
 async function performGlobalSearch(query) {
     const resultsContainer = document.getElementById('exploreResults');
+
+    // Clear previous selection
+    selectedRows.clear();
 
     // Show loading in main results area
     resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
 
     try {
+        // Parse the query to determine type
+        const parsedQuery = parseSearchQuery(query);
+
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
 
-        if (data.success && data.transactions && data.transactions.length > 0) {
-            displaySearchTransactions(data);
+        if (data.success && data.transactions) {
+            let filteredTransactions = data.transactions;
+
+            // If amount query, filter client-side
+            if (parsedQuery.type === 'amount') {
+                filteredTransactions = data.transactions.filter(txn => {
+                    const amount = txn.Amount || txn.amount || 0;
+
+                    if (parsedQuery.operator === 'gte') {
+                        return amount >= parsedQuery.value;
+                    } else if (parsedQuery.operator === 'lte') {
+                        return amount <= parsedQuery.value;
+                    } else if (parsedQuery.operator === 'range') {
+                        return amount >= parsedQuery.min && amount <= parsedQuery.max;
+                    }
+                    return true;
+                });
+
+                // Recalculate summary for filtered results
+                const total_amount = filteredTransactions.reduce((sum, t) => sum + (t.Amount || t.amount || 0), 0);
+                const donors = new Set(filteredTransactions.map(t => t.Donor || t.donor).filter(Boolean));
+                const recipients = new Set(filteredTransactions.map(t => t.Recipient || t.recipient).filter(Boolean));
+
+                data.summary = {
+                    total_transactions: filteredTransactions.length,
+                    total_amount: total_amount,
+                    unique_donors: donors.size,
+                    unique_recipients: recipients.size
+                };
+            }
+
+            if (filteredTransactions.length > 0) {
+                displaySearchTransactions({
+                    transactions: filteredTransactions,
+                    summary: data.summary,
+                    originalQuery: query  // Store original query for search-within-search
+                });
+            } else {
+                resultsContainer.innerHTML = '<div class="loading">No results found</div>';
+            }
         } else {
             resultsContainer.innerHTML = '<div class="loading">No results found</div>';
         }
@@ -493,16 +582,265 @@ async function performGlobalSearch(query) {
     }
 }
 
+// Calculate summary statistics from transactions
+function calculateSummary(transactions) {
+    const total_amount = transactions.reduce((sum, t) => sum + (t.Amount || t.amount || 0), 0);
+    const donors = new Set(transactions.map(t => t.Donor || t.donor).filter(Boolean));
+    const recipients = new Set(transactions.map(t => t.Recipient || t.recipient).filter(Boolean));
+
+    return {
+        total_transactions: transactions.length,
+        total_amount: total_amount,
+        unique_donors: donors.size,
+        unique_recipients: recipients.size
+    };
+}
+
+// Setup search-within-results functionality
+function setupSearchWithinResults() {
+    const searchInput = document.getElementById('searchWithinResults');
+    if (!searchInput) return;
+
+    let timeout = null;
+
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(timeout);
+        const filterQuery = e.target.value.trim().toLowerCase();
+
+        timeout = setTimeout(() => {
+            if (filterQuery.length === 0) {
+                // Show all results
+                displaySearchTransactions({
+                    transactions: allTransactions,
+                    summary: calculateSummary(allTransactions),
+                    originalQuery: currentQuery
+                });
+            } else {
+                // Filter results
+                const filtered = allTransactions.filter(txn => {
+                    const donor = (txn.Donor || txn.donor || '').toLowerCase();
+                    const recipient = (txn.Recipient || txn.recipient || '').toLowerCase();
+                    const period = (txn.Period || txn.period || '').toLowerCase();
+                    const type = (txn.Type || txn.type || '').toLowerCase();
+                    const amount = String(txn.Amount || txn.amount || '');
+
+                    return donor.includes(filterQuery) ||
+                           recipient.includes(filterQuery) ||
+                           period.includes(filterQuery) ||
+                           type.includes(filterQuery) ||
+                           amount.includes(filterQuery);
+                });
+
+                displaySearchTransactions({
+                    transactions: filtered,
+                    summary: calculateSummary(filtered),
+                    originalQuery: currentQuery
+                });
+            }
+        }, 200);  // 200ms debounce for filtering
+    });
+}
+
+// Sort table by column
+function sortTable(column) {
+    // Toggle direction if clicking same column, otherwise default to descending
+    if (sortState.column === column) {
+        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortState.column = column;
+        sortState.direction = 'desc';  // Default to descending for new column
+    }
+
+    // Get the current transactions data
+    if (!currentDisplayedData || !currentDisplayedData.data) return;
+
+    const transactions = currentDisplayedData.data;
+
+    // Sort the transactions array
+    transactions.sort((a, b) => {
+        let valA = a[column];
+        let valB = b[column];
+
+        // Handle null/undefined values
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+
+        // Special handling for Amount (numeric)
+        if (column === 'Amount') {
+            valA = parseFloat(valA) || 0;
+            valB = parseFloat(valB) || 0;
+        } else {
+            // String comparison for text fields
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+        }
+
+        let comparison = 0;
+        if (valA > valB) comparison = 1;
+        if (valA < valB) comparison = -1;
+
+        return sortState.direction === 'asc' ? comparison : -comparison;
+    });
+
+    // Re-render the table with sorted data
+    displaySearchTransactions({
+        transactions: transactions,
+        summary: currentDisplayedData.summary,
+        originalQuery: currentQuery
+    });
+}
+
+// Update sort indicators
+function updateSortIndicators() {
+    // Remove all existing indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        indicator.textContent = '';
+    });
+
+    // Add indicator to current sorted column
+    const header = document.querySelector(`th[data-column="${sortState.column}"] .sort-indicator`);
+    if (header) {
+        header.textContent = sortState.direction === 'asc' ? ' ▲' : ' ▼';
+    }
+}
+
+// Toggle individual row selection
+function toggleRowSelection(index) {
+    if (selectedRows.has(index)) {
+        selectedRows.delete(index);
+    } else {
+        selectedRows.add(index);
+    }
+
+    // Update the row highlighting
+    const row = document.querySelector(`tr[data-index="${index}"]`);
+    if (row) {
+        if (selectedRows.has(index)) {
+            row.classList.add('selected-row');
+        } else {
+            row.classList.remove('selected-row');
+        }
+    }
+
+    // Update the "select all" checkbox state
+    updateSelectAllCheckbox();
+
+    // Update the tally display
+    updateSelectionTally();
+}
+
+// Toggle select all rows
+function toggleSelectAll() {
+    const checkbox = document.getElementById('selectAllRows');
+    const isChecked = checkbox.checked;
+
+    if (isChecked) {
+        // Select all rows
+        if (currentDisplayedData && currentDisplayedData.data) {
+            selectedRows.clear();
+            currentDisplayedData.data.forEach((_, index) => {
+                selectedRows.add(index);
+            });
+        }
+    } else {
+        // Deselect all rows
+        selectedRows.clear();
+    }
+
+    // Re-render to update all checkboxes and row highlighting
+    displaySearchTransactions({
+        transactions: currentDisplayedData.data,
+        summary: currentDisplayedData.summary,
+        originalQuery: currentQuery
+    });
+}
+
+// Update select all checkbox state
+function updateSelectAllCheckbox() {
+    const checkbox = document.getElementById('selectAllRows');
+    if (!checkbox) return;
+
+    const totalRows = currentDisplayedData ? currentDisplayedData.data.length : 0;
+    const selectedCount = selectedRows.size;
+
+    if (selectedCount === 0) {
+        checkbox.checked = false;
+        checkbox.indeterminate = false;
+    } else if (selectedCount === totalRows) {
+        checkbox.checked = true;
+        checkbox.indeterminate = false;
+    } else {
+        checkbox.checked = false;
+        checkbox.indeterminate = true;  // Partial selection
+    }
+}
+
+// Update selection tally display
+function updateSelectionTally() {
+    const tallyDiv = document.getElementById('selectionTally');
+    const countSpan = document.getElementById('selectedCount');
+    const totalSpan = document.getElementById('selectedTotal');
+    const averageSpan = document.getElementById('selectedAverage');
+
+    if (!tallyDiv || !currentDisplayedData) return;
+
+    const selectedCount = selectedRows.size;
+
+    if (selectedCount === 0) {
+        // Hide tally when nothing selected
+        tallyDiv.style.display = 'none';
+        return;
+    }
+
+    // Show tally
+    tallyDiv.style.display = 'block';
+
+    // Calculate totals from selected rows
+    let totalAmount = 0;
+    const transactions = currentDisplayedData.data;
+
+    selectedRows.forEach(index => {
+        const txn = transactions[index];
+        if (txn) {
+            totalAmount += (txn.Amount || txn.amount || 0);
+        }
+    });
+
+    const averageAmount = selectedCount > 0 ? totalAmount / selectedCount : 0;
+
+    // Update display
+    countSpan.textContent = selectedCount;
+    totalSpan.textContent = formatCurrency(totalAmount);
+    averageSpan.textContent = formatCurrency(averageAmount);
+}
+
+// Clear all selections
+function clearSelection() {
+    selectedRows.clear();
+
+    // Re-render to update checkboxes and highlighting
+    displaySearchTransactions({
+        transactions: currentDisplayedData.data,
+        summary: currentDisplayedData.summary,
+        originalQuery: currentQuery
+    });
+}
+
 // Display search transaction results
 function displaySearchTransactions(data) {
     const resultsContainer = document.getElementById('exploreResults');
     const summary = data.summary;
     const transactions = data.transactions;
 
+    // Store unfiltered transactions for search-within-search
+    allTransactions = transactions;
+    currentQuery = data.originalQuery || '';
+
     // Store data for export
     currentDisplayedData = {
         columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type'],
-        data: transactions
+        data: transactions,
+        summary: summary
     };
 
     let html = '';
@@ -518,18 +856,39 @@ function displaySearchTransactions(data) {
     html += '</div>';
     html += '</div>';
 
-    // Transactions table
+    // Search-within-results input
+    html += '<div style="margin-bottom: 1rem;">';
+    html += '<input type="text" id="searchWithinResults" placeholder="Filter current results..." ';
+    html += 'style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">';
+    html += '</div>';
+
+    // Selection tally section (hidden by default)
+    html += '<div id="selectionTally" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; color: white; display: none;">';
+    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+    html += '<div style="font-weight: 600; font-size: 1rem;">Selected: <span id="selectedCount">0</span> transactions</div>';
+    html += '<div style="display: flex; gap: 2rem; font-size: 0.95rem;">';
+    html += '<div>Total: <span id="selectedTotal" style="font-weight: 600;">$0</span></div>';
+    html += '<div>Average: <span id="selectedAverage" style="font-weight: 600;">$0</span></div>';
+    html += '<div style="margin-left: 1rem;"><button onclick="clearSelection()" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 0.25rem; color: white; cursor: pointer; font-size: 0.875rem;">Clear Selection</button></div>';
+    html += '</div></div></div>';
+
+    // Transactions table with sortable headers and checkboxes
     html += '<table><thead><tr>';
-    html += '<th>Donor</th>';
-    html += '<th>Recipient</th>';
-    html += '<th>Amount</th>';
-    html += '<th>Date</th>';
-    html += '<th>Period</th>';
-    html += '<th>Type</th>';
+    html += '<th style="width: 40px;"><input type="checkbox" id="selectAllRows" onchange="toggleSelectAll()"></th>';
+    html += '<th class="sortable" data-column="Donor" onclick="sortTable(\'Donor\')">Donor <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Recipient" onclick="sortTable(\'Recipient\')">Recipient <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Amount" onclick="sortTable(\'Amount\')">Amount <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Date" onclick="sortTable(\'Date\')">Date <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Period" onclick="sortTable(\'Period\')">Period <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Type" onclick="sortTable(\'Type\')">Type <span class="sort-indicator"></span></th>';
     html += '</tr></thead><tbody>';
 
-    transactions.forEach(txn => {
-        html += '<tr>';
+    transactions.forEach((txn, index) => {
+        const isSelected = selectedRows.has(index) ? 'checked' : '';
+        const rowClass = selectedRows.has(index) ? 'class="selected-row"' : '';
+
+        html += `<tr ${rowClass} data-index="${index}">`;
+        html += `<td><input type="checkbox" class="row-checkbox" data-index="${index}" ${isSelected} onchange="toggleRowSelection(${index})"></td>`;
         html += `<td>${escapeHtml(txn.donor || txn.Donor || '')}</td>`;
         html += `<td>${escapeHtml(txn.recipient || txn.Recipient || '')}</td>`;
         html += `<td>${formatCurrency(txn.Amount || txn.amount || 0)}</td>`;
@@ -546,6 +905,18 @@ function displaySearchTransactions(data) {
     }
 
     resultsContainer.innerHTML = html;
+
+    // Setup search-within-results after rendering
+    setupSearchWithinResults();
+
+    // Update sort indicators
+    updateSortIndicators();
+
+    // Update selection tally
+    updateSelectionTally();
+
+    // Update select all checkbox state
+    updateSelectAllCheckbox();
 }
 
 // Apply filters

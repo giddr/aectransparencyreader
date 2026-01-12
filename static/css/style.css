@@ -1120,3 +1120,58 @@ body {
     margin-left: 1.5rem;
     margin-top: 0.5rem;
 }
+
+/* Enhanced Search Results - Sortable Columns, Selection, and Tallying */
+
+/* Sortable column headers */
+.explore-results th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.explore-results th.sortable:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.explore-results .sort-indicator {
+    color: #667eea;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+}
+
+/* Selected row highlighting */
+.explore-results tr.selected-row {
+    background: rgba(102, 126, 234, 0.15) !important;
+}
+
+.explore-results tr.selected-row:hover {
+    background: rgba(102, 126, 234, 0.25) !important;
+}
+
+/* Checkbox styling */
+.explore-results input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+.explore-results th input[type="checkbox"] {
+    margin: 0;
+}
+
+/* Selection tally banner */
+#selectionTally {
+    animation: tallySlideDown 0.3s ease-out;
+}
+
+@keyframes tallySlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
