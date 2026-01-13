@@ -1175,3 +1175,227 @@ body {
         transform: translateY(0);
     }
 }
+
+/* Intelligence Summary Card - Tier 1 */
+.intelligence-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.intelligence-summary h2 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 2rem;
+    margin: 1.5rem 0;
+}
+
+.summary-stats .stat-large {
+    text-align: center;
+}
+
+.summary-stats .stat-large .value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    display: block;
+    line-height: 1;
+}
+
+.summary-stats .stat-large .label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+.summary-breakdowns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.breakdown-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+.breakdown-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.breakdown-list li {
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    opacity: 0.95;
+}
+
+.relationship-summary {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.95rem;
+}
+
+/* Entity Groups - Tier 2 */
+.entity-groups-section {
+    margin: 2rem 0;
+}
+
+.entity-group {
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.group-header {
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(102, 126, 234, 0.05);
+    transition: background 0.2s;
+}
+
+.group-header:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.toggle-icon {
+    font-size: 0.875rem;
+    color: #667eea;
+    transition: transform 0.2s;
+    width: 1rem;
+    display: inline-block;
+}
+
+.group-header h3 {
+    margin: 0;
+    flex: 1;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.group-stats {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.group-content {
+    padding: 1rem 1.5rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.entity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.entity-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.entity-name {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.entity-stats {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.top-entities {
+    margin-top: 1rem;
+}
+
+.top-entities h5 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+/* Transactions Section - Tier 3 */
+.transactions-section {
+    margin-top: 2rem;
+}
+
+.transactions-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+/* Dark mode compatibility */
+body.dark-mode .intelligence-summary {
+    background: linear-gradient(135deg, #4c51bf 0%, #6b46c1 100%);
+}
+
+body.dark-mode .entity-group {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .entity-item {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .entity-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments for intelligence summary */
+@media (max-width: 768px) {
+    .intelligence-summary h2 {
+        font-size: 1.5rem;
+    }
+
+    .summary-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .summary-stats .stat-large .value {
+        font-size: 2rem;
+    }
+
+    .summary-breakdowns {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .group-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .group-header h3 {
+        font-size: 1.1rem;
+    }
+}

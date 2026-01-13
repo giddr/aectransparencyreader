@@ -849,35 +849,282 @@ function clearSelection() {
     });
 }
 
-// Display search transaction results
-function displaySearchTransactions(data) {
-    const resultsContainer = document.getElementById('exploreResults');
-    const summary = data.summary;
-    const transactions = data.transactions;
-
-    // Store unfiltered transactions for search-within-search
-    allTransactions = transactions;
-    currentQuery = data.originalQuery || '';
-
-    // Store data for export
-    currentDisplayedData = {
-        columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type', 'Receipt_Type'],
-        data: transactions,
-        summary: summary
+// Detect entity groups client-side for investigative search
+function detectEntityGroupsClientSide(transactions, query) {
+    /**
+     * Pattern match on recipient/donor names to find related entities
+     * Returns: {
+     *   main_entity: [...transactions...],
+     *   branches: {
+     *     'NSW Branch': [...],
+     *     'Victorian Branch': [...]
+     *   },
+     *   associated: [...transactions with Pty Ltd, Holdings, etc...]
+     * }
+     */
+    const groups = {
+        main_entity: [],
+        branches: {},
+        associated: []
     };
 
-    let html = '';
+    const queryLower = query.toLowerCase();
 
-    // Summary header
-    html += '<div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-color); border-radius: 0.5rem;">';
-    html += '<h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">Search Results</h3>';
-    html += '<div style="display: flex; gap: 2rem; font-size: 0.95rem; color: var(--text-secondary);">';
-    html += `<span><strong>${summary.total_transactions}</strong> transactions</span>`;
-    html += `<span><strong>${formatCurrency(summary.total_amount)}</strong> total</span>`;
-    html += `<span><strong>${summary.unique_donors}</strong> donors</span>`;
-    html += `<span><strong>${summary.unique_recipients}</strong> recipients</span>`;
+    transactions.forEach(txn => {
+        const recipient = (txn.Recipient || '').toLowerCase();
+        const donor = (txn.Donor || '').toLowerCase();
+        const name = recipient.includes(queryLower) ? txn.Recipient : txn.Donor;
+        const nameLower = name.toLowerCase();
+
+        // Detect branch patterns: "Australian Labor Party (NSW Branch)"
+        if (nameLower.includes(queryLower) && nameLower.includes('branch')) {
+            const branchMatch = name.match(/\(([^)]+)\)/);
+            if (branchMatch) {
+                const branchName = branchMatch[1];
+                if (!groups.branches[branchName]) {
+                    groups.branches[branchName] = [];
+                }
+                groups.branches[branchName].push(txn);
+                return;
+            }
+        }
+
+        // Detect associated entity patterns: contains query + "Pty Ltd", "Holdings", "Campaign"
+        if (nameLower.includes(queryLower) &&
+            (nameLower.includes('pty ltd') || nameLower.includes('limited') ||
+             nameLower.includes('holdings') || nameLower.includes('campaign'))) {
+            groups.associated.push(txn);
+            return;
+        }
+
+        // Main entity: exact or close match to query
+        if (nameLower.includes(queryLower)) {
+            groups.main_entity.push(txn);
+        }
+    });
+
+    return groups;
+}
+
+// Calculate client-side aggregations for investigative search
+function calculateClientSideAggregations(transactions) {
+    /**
+     * Calculate summary statistics from transactions
+     */
+    const aggregations = {
+        total_amount: 0,
+        total_transactions: transactions.length,
+        by_receipt_type: {},
+        by_period: {},
+        by_type: {},
+        top_donors: {},
+        top_recipients: {}
+    };
+
+    transactions.forEach(txn => {
+        const amount = txn.Amount || 0;
+        aggregations.total_amount += amount;
+
+        // By receipt type
+        const receiptType = txn.Receipt_Type || 'Unspecified';
+        aggregations.by_receipt_type[receiptType] =
+            (aggregations.by_receipt_type[receiptType] || 0) + amount;
+
+        // By period
+        const period = txn.Period || 'Unknown';
+        aggregations.by_period[period] =
+            (aggregations.by_period[period] || 0) + amount;
+
+        // By type (Election Donation, Annual Return, etc.)
+        const type = txn.Type || 'Other';
+        aggregations.by_type[type] =
+            (aggregations.by_type[type] || 0) + amount;
+
+        // Track top donors
+        const donor = txn.Donor;
+        if (donor) {
+            aggregations.top_donors[donor] =
+                (aggregations.top_donors[donor] || 0) + amount;
+        }
+
+        // Track top recipients
+        const recipient = txn.Recipient;
+        if (recipient) {
+            aggregations.top_recipients[recipient] =
+                (aggregations.top_recipients[recipient] || 0) + amount;
+        }
+    });
+
+    // Sort top donors/recipients
+    aggregations.top_donors = Object.entries(aggregations.top_donors)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    aggregations.top_recipients = Object.entries(aggregations.top_recipients)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    return aggregations;
+}
+
+// Render intelligence summary card (Tier 1)
+function renderIntelligenceSummary(query, aggregations, entityGroups) {
+    /**
+     * Render Tier 1: Intelligence Summary Card
+     */
+    let html = '<div class="intelligence-summary">';
+
+    // Header
+    html += `<h2>${escapeHtml(query.toUpperCase())} - COMPLETE PROFILE</h2>`;
+
+    // Key stats
+    html += '<div class="summary-stats">';
+    html += `<div class="stat-large">`;
+    html += `<span class="value">${formatCurrency(aggregations.total_amount)}</span>`;
+    html += `<span class="label">Total</span>`;
+    html += `</div>`;
+    html += `<div class="stat-large">`;
+    html += `<span class="value">${aggregations.total_transactions}</span>`;
+    html += `<span class="label">Transactions</span>`;
+    html += `</div>`;
     html += '</div>';
-    html += '</div>';
+
+    // Breakdowns
+    html += '<div class="summary-breakdowns">';
+
+    // By Receipt Type
+    if (Object.keys(aggregations.by_receipt_type).length > 0) {
+        html += '<div class="breakdown-section">';
+        html += '<h4>By Source Type</h4>';
+        html += '<ul class="breakdown-list">';
+        Object.entries(aggregations.by_receipt_type)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([type, amount]) => {
+                const percentage = ((amount / aggregations.total_amount) * 100).toFixed(1);
+                html += `<li><strong>${type}:</strong> ${formatCurrency(amount)} (${percentage}%)</li>`;
+            });
+        html += '</ul></div>';
+    }
+
+    // By Period
+    if (Object.keys(aggregations.by_period).length > 0) {
+        html += '<div class="breakdown-section">';
+        html += '<h4>By Period</h4>';
+        html += '<ul class="breakdown-list">';
+        Object.entries(aggregations.by_period)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .forEach(([period, amount]) => {
+                html += `<li><strong>${period}:</strong> ${formatCurrency(amount)}</li>`;
+            });
+        html += '</ul></div>';
+    }
+
+    html += '</div>'; // end summary-breakdowns
+
+    // Entity relationships summary
+    if (Object.keys(entityGroups.branches).length > 0) {
+        const branchCount = Object.keys(entityGroups.branches).length;
+        const branchTotal = Object.values(entityGroups.branches)
+            .flat()
+            .reduce((sum, txn) => sum + (txn.Amount || 0), 0);
+        html += `<div class="relationship-summary">`;
+        html += `<strong>Branches:</strong> ${branchCount} entities, ${formatCurrency(branchTotal)} total`;
+        html += `</div>`;
+    }
+
+    if (entityGroups.associated.length > 0) {
+        const associatedTotal = entityGroups.associated
+            .reduce((sum, txn) => sum + (txn.Amount || 0), 0);
+        html += `<div class="relationship-summary">`;
+        html += `<strong>Associated Entities:</strong> ${formatCurrency(associatedTotal)} total`;
+        html += `</div>`;
+    }
+
+    html += '</div>'; // end intelligence-summary
+
+    return html;
+}
+
+// Render entity group (Tier 2)
+function renderEntityGroup(groupTitle, groupData, groupId) {
+    /**
+     * Render Tier 2: Collapsible Entity Group
+     */
+    const isMap = typeof groupData === 'object' && !Array.isArray(groupData);
+    const transactions = isMap ? Object.values(groupData).flat() : groupData;
+    const groupTotal = transactions.reduce((sum, txn) => sum + (txn.Amount || 0), 0);
+
+    let html = `<div class="entity-group" data-group-id="${groupId}">`;
+
+    // Group header (collapsible)
+    html += `<div class="group-header" onclick="toggleEntityGroup('${groupId}')">`;
+    html += `<span class="toggle-icon" id="toggle-${groupId}">▼</span>`;
+    html += `<h3>${groupTitle}</h3>`;
+    html += `<span class="group-stats">${formatCurrency(groupTotal)} (${transactions.length} transactions)</span>`;
+    html += `</div>`;
+
+    // Group content (initially expanded)
+    html += `<div class="group-content" id="content-${groupId}">`;
+
+    if (isMap) {
+        // Render sub-entities (e.g., individual branches)
+        Object.entries(groupData).forEach(([entityName, entityTransactions]) => {
+            const entityTotal = entityTransactions.reduce((sum, txn) => sum + (txn.Amount || 0), 0);
+            html += `<div class="entity-item">`;
+            html += `<span class="entity-name">${escapeHtml(entityName)}</span>`;
+            html += `<span class="entity-stats">${formatCurrency(entityTotal)} (${entityTransactions.length} txn)</span>`;
+            html += `</div>`;
+        });
+    } else {
+        // Render top donors/recipients for this group
+        const topEntities = {};
+        transactions.forEach(txn => {
+            const key = txn.Donor || txn.Recipient;
+            topEntities[key] = (topEntities[key] || 0) + (txn.Amount || 0);
+        });
+
+        html += '<div class="top-entities">';
+        html += '<h5>Top 5:</h5>';
+        Object.entries(topEntities)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .forEach(([name, amount]) => {
+                html += `<div class="entity-item">`;
+                html += `<span class="entity-name">${escapeHtml(name)}</span>`;
+                html += `<span class="entity-stats">${formatCurrency(amount)}</span>`;
+                html += `</div>`;
+            });
+        html += '</div>';
+    }
+
+    html += `</div>`; // end group-content
+    html += `</div>`; // end entity-group
+
+    return html;
+}
+
+// Toggle entity group visibility
+function toggleEntityGroup(groupId) {
+    const content = document.getElementById(`content-${groupId}`);
+    const toggle = document.getElementById(`toggle-${groupId}`);
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '▶';
+    }
+}
+
+// Render transactions table (Tier 3)
+function renderTransactionsTable(transactions, summary) {
+    /**
+     * Render Tier 3: Individual Transactions Table
+     * Keep existing table functionality (sorting, selection, filtering)
+     */
+    let html = '<div class="transactions-section">';
+    html += '<h3>Individual Transactions</h3>';
 
     // Search-within-results input
     html += '<div style="margin-bottom: 1rem;">';
@@ -942,6 +1189,70 @@ function displaySearchTransactions(data) {
     if (transactions.length >= 100) {
         html += '<p style="margin-top: 1rem; text-align: center; color: var(--text-secondary);">Showing first 100 results. Refine your search for more specific results.</p>';
     }
+
+    html += '</div>'; // end transactions-section
+
+    return html;
+}
+
+// Display search transaction results with three-tier investigative structure
+function displaySearchTransactions(data) {
+    const resultsContainer = document.getElementById('exploreResults');
+    const summary = data.summary;
+    const transactions = data.transactions;
+    const query = data.originalQuery || '';
+
+    // Store unfiltered transactions for search-within-search
+    allTransactions = transactions;
+    currentQuery = query;
+
+    // Store data for export
+    currentDisplayedData = {
+        columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type', 'Receipt_Type'],
+        data: transactions,
+        summary: summary
+    };
+
+    // 1. Detect entity patterns client-side
+    const entityGroups = detectEntityGroupsClientSide(transactions, query);
+
+    // 2. Calculate aggregations
+    const aggregations = calculateClientSideAggregations(transactions);
+
+    // 3. Render three-tier structure
+    let html = '';
+
+    // TIER 1: Intelligence Summary Card
+    html += renderIntelligenceSummary(query, aggregations, entityGroups);
+
+    // TIER 2: Collapsible Entity Groups (if detected)
+    const hasBranches = Object.keys(entityGroups.branches).length > 0;
+    const hasAssociated = entityGroups.associated.length > 0;
+    const hasMainEntity = entityGroups.main_entity.length > 0;
+
+    if (hasBranches || hasAssociated || hasMainEntity) {
+        html += '<div class="entity-groups-section">';
+
+        // Main entity group
+        if (hasMainEntity) {
+            html += renderEntityGroup('Main Entity', entityGroups.main_entity, 'main');
+        }
+
+        // Branch entities
+        if (hasBranches) {
+            html += renderEntityGroup('State/Territory Branches', entityGroups.branches, 'branches');
+        }
+
+        // Associated entities
+        if (hasAssociated) {
+            html += renderEntityGroup('Associated Entities', entityGroups.associated, 'associated');
+        }
+
+        html += '</div>';
+    }
+
+    // TIER 3: Full Transaction Table (existing functionality)
+    html += renderTransactionsTable(transactions, summary);
 
     resultsContainer.innerHTML = html;
 
