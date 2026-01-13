@@ -205,7 +205,7 @@ def quote_identifiers_for_postgres(sql):
         'Total_Gift_Value', 'Number_Of_Donors', 'Total_Electoral_Expenditure',
         'Total_Donations_Received', 'Number_of_Donors', 'Total_Donations_Made',
         'Electoral_Expenditure', 'Advertiser', 'Advertiser_Type', 'Amount',
-        'Received_From', 'Recipient_Name',
+        'Received_From', 'Recipient_Name', 'Receipt_Type',
         'Gift_From_Name', 'Gift_From_Gift_Value', 'Gift_From_Date_Of_Gift',
         'Third_Party_Name', 'Third_Party_Code',
         'Donation_Value', 'Date_Of_Donation',
@@ -579,7 +579,22 @@ def search():
     # Use ILIKE for case-insensitive search in PostgreSQL
     like_op = 'ILIKE' if USE_POSTGRES else 'LIKE'
 
+    # Split query into words for intelligent matching (all words must match)
+    words = query.split()
+
+    # Helper function to build WHERE clause requiring ALL query words to match
+    def build_where_clause(donor_col, recipient_col):
+        """Build WHERE clause requiring all query words to match in either donor or recipient"""
+        word_conditions = []
+        for word in words:
+            # Each word must match in EITHER donor OR recipient
+            word_condition = f"({donor_col} {like_op} '%{word}%' OR {recipient_col} {like_op} '%{word}%')"
+            word_conditions.append(word_condition)
+        # ALL words must match (AND between word conditions)
+        return " AND ".join(word_conditions)
+
     # Search ALL election donations (all years) - sorted by amount to get most significant
+    where_clause_elections = build_where_clause('Donor_Name', 'Donated_To')
     sql_elections = f"""
         SELECT
             Donor_Name as Donor,
@@ -587,9 +602,10 @@ def search():
             Donated_To_Gift_Value as Amount,
             Donated_To_Date_Of_Gift as Date,
             Event as Period,
-            'Election Donation' as Type
+            'Election Donation' as Type,
+            NULL as Receipt_Type
         FROM election_Donor_Donations_Made
-        WHERE (Donor_Name {like_op} '%{query}%' OR Donated_To {like_op} '%{query}%')
+        WHERE {where_clause_elections}
         ORDER BY Donated_To_Gift_Value DESC
         LIMIT 200
     """
@@ -598,6 +614,7 @@ def search():
         all_transactions.extend(results_elections['data'])
 
     # Search ALL annual donations (all financial years) - sorted by amount to get most significant
+    where_clause_annual = build_where_clause('Donor_Name', 'Donation_Made_To')
     sql_annual = f"""
         SELECT
             Donor_Name as Donor,
@@ -605,9 +622,10 @@ def search():
             Value as Amount,
             Date,
             Financial_Year as Period,
-            'Annual Return' as Type
+            'Annual Return' as Type,
+            NULL as Receipt_Type
         FROM annual_Donations_Made
-        WHERE (Donor_Name {like_op} '%{query}%' OR Donation_Made_To {like_op} '%{query}%')
+        WHERE {where_clause_annual}
         ORDER BY Value DESC
         LIMIT 200
     """
@@ -616,6 +634,7 @@ def search():
         all_transactions.extend(results_annual['data'])
 
     # Search ALL annual donations received (donations TO parties/entities) - sorted by amount
+    where_clause_annual_received = build_where_clause('Donation_Received_From', 'Name')
     sql_annual_received = f"""
         SELECT
             Donation_Received_From as Donor,
@@ -623,9 +642,10 @@ def search():
             Value as Amount,
             Date,
             Financial_Year as Period,
-            'Annual Return (Received)' as Type
+            'Annual Return (Received)' as Type,
+            NULL as Receipt_Type
         FROM annual_Donor_Donations_Received
-        WHERE (Donation_Received_From {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        WHERE {where_clause_annual_received}
         ORDER BY Value DESC
         LIMIT 200
     """
@@ -634,15 +654,17 @@ def search():
         all_transactions.extend(results_annual_received['data'])
 
     # Search annual detailed receipts (party annual returns) - sorted by amount
+    where_clause_detailed_receipts = build_where_clause('Received_From', 'Recipient_Name')
     sql_detailed_receipts = f"""
         SELECT
             Received_From as Donor,
             Recipient_Name as Recipient,
             Value as Amount,
             Financial_Year as Period,
-            'Party Annual Return' as Type
+            'Party Annual Return' as Type,
+            Receipt_Type
         FROM annual_Detailed_Receipts
-        WHERE (Received_From {like_op} '%{query}%' OR Recipient_Name {like_op} '%{query}%')
+        WHERE {where_clause_detailed_receipts}
         ORDER BY Value DESC
         LIMIT 200
     """
@@ -651,6 +673,7 @@ def search():
         all_transactions.extend(results_detailed_receipts['data'])
 
     # Search election donations received (donations TO donors/entities) - sorted by amount
+    where_clause_election_received = build_where_clause('Gift_From_Name', 'Donor_Name')
     sql_election_received = f"""
         SELECT
             Gift_From_Name as Donor,
@@ -658,9 +681,10 @@ def search():
             Gift_From_Gift_Value as Amount,
             Gift_From_Date_Of_Gift as Date,
             Event as Period,
-            'Election Donation (Received)' as Type
+            'Election Donation (Received)' as Type,
+            NULL as Receipt_Type
         FROM election_Donor_Donations_Received
-        WHERE (Gift_From_Name {like_op} '%{query}%' OR Donor_Name {like_op} '%{query}%')
+        WHERE {where_clause_election_received}
         ORDER BY Gift_From_Gift_Value DESC
         LIMIT 200
     """
@@ -669,6 +693,7 @@ def search():
         all_transactions.extend(results_election_received['data'])
 
     # Search third party donations made (elections) - sorted by amount
+    where_clause_tp_made = build_where_clause('Third_Party_Name', 'Name')
     sql_tp_donations_made = f"""
         SELECT
             Third_Party_Name as Donor,
@@ -676,9 +701,10 @@ def search():
             Donation_Value as Amount,
             Date_Of_Donation as Date,
             Event as Period,
-            'Third Party Donation (Made)' as Type
+            'Third Party Donation (Made)' as Type,
+            NULL as Receipt_Type
         FROM election_Third_Party_Return_Donations_Made
-        WHERE (Third_Party_Name {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        WHERE {where_clause_tp_made}
         ORDER BY Donation_Value DESC
         LIMIT 200
     """
@@ -687,6 +713,7 @@ def search():
         all_transactions.extend(results_tp_made['data'])
 
     # Search third party donations received (elections) - sorted by amount
+    where_clause_tp_received = build_where_clause('Donor_Name', 'Third_Party_Name')
     sql_tp_donations_received = f"""
         SELECT
             Donor_Name as Donor,
@@ -694,9 +721,10 @@ def search():
             Gift_Value as Amount,
             Date_Of_Gift as Date,
             Event as Period,
-            'Third Party Donation (Received)' as Type
+            'Third Party Donation (Received)' as Type,
+            NULL as Receipt_Type
         FROM election_Third_Party_Return_Donations_Received
-        WHERE (Donor_Name {like_op} '%{query}%' OR Third_Party_Name {like_op} '%{query}%')
+        WHERE {where_clause_tp_received}
         ORDER BY Gift_Value DESC
         LIMIT 200
     """
@@ -705,6 +733,7 @@ def search():
         all_transactions.extend(results_tp_received['data'])
 
     # Search candidate/senate group donations (elections) - sorted by amount
+    where_clause_candidate = build_where_clause('Donor_Name', 'Name')
     sql_candidate_donations = f"""
         SELECT
             Donor_Name as Donor,
@@ -712,9 +741,10 @@ def search():
             Gift_Value as Amount,
             Date_Of_Gift as Date,
             Event as Period,
-            'Candidate Donation' as Type
+            'Candidate Donation' as Type,
+            NULL as Receipt_Type
         FROM election_Senate_Groups_and_Candidate_Donations
-        WHERE (Donor_Name {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        WHERE {where_clause_candidate}
         ORDER BY Gift_Value DESC
         LIMIT 200
     """
@@ -723,6 +753,7 @@ def search():
         all_transactions.extend(results_candidate['data'])
 
     # Search annual third party donations received - sorted by amount
+    where_clause_annual_tp = build_where_clause('Donation_Received_From', 'Name')
     sql_annual_tp_received = f"""
         SELECT
             Donation_Received_From as Donor,
@@ -730,9 +761,10 @@ def search():
             Value as Amount,
             Date,
             Financial_Year as Period,
-            'Third Party Annual Donation' as Type
+            'Third Party Annual Donation' as Type,
+            NULL as Receipt_Type
         FROM annual_Third_Party_Donations_Received
-        WHERE (Donation_Received_From {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        WHERE {where_clause_annual_tp}
         ORDER BY Value DESC
         LIMIT 200
     """

@@ -608,36 +608,59 @@ function setupSearchWithinResults() {
         const filterQuery = e.target.value.trim().toLowerCase();
 
         timeout = setTimeout(() => {
-            if (filterQuery.length === 0) {
-                // Show all results
-                displaySearchTransactions({
-                    transactions: allTransactions,
-                    summary: calculateSummary(allTransactions),
-                    originalQuery: currentQuery
-                });
-            } else {
-                // Filter results
-                const filtered = allTransactions.filter(txn => {
-                    const donor = (txn.Donor || txn.donor || '').toLowerCase();
-                    const recipient = (txn.Recipient || txn.recipient || '').toLowerCase();
-                    const period = (txn.Period || txn.period || '').toLowerCase();
-                    const type = (txn.Type || txn.type || '').toLowerCase();
-                    const amount = String(txn.Amount || txn.amount || '');
-
-                    return donor.includes(filterQuery) ||
-                           recipient.includes(filterQuery) ||
-                           period.includes(filterQuery) ||
-                           type.includes(filterQuery) ||
-                           amount.includes(filterQuery);
-                });
-
-                displaySearchTransactions({
-                    transactions: filtered,
-                    summary: calculateSummary(filtered),
-                    originalQuery: currentQuery
-                });
-            }
+            applyAllFilters();
         }, 200);  // 200ms debounce for filtering
+    });
+}
+
+// Setup receipt type filter functionality
+function setupReceiptTypeFilter() {
+    const filterSelect = document.getElementById('receiptTypeFilter');
+    if (!filterSelect) return;
+
+    filterSelect.addEventListener('change', (e) => {
+        applyAllFilters();
+    });
+}
+
+// Apply all filters (search-within-results + receipt type filter)
+function applyAllFilters() {
+    const searchQuery = document.getElementById('searchWithinResults')?.value.trim().toLowerCase() || '';
+    const receiptTypeFilter = document.getElementById('receiptTypeFilter')?.value || '';
+
+    let filtered = allTransactions;
+
+    // Apply search-within-results filter
+    if (searchQuery.length > 0) {
+        filtered = filtered.filter(txn => {
+            const donor = (txn.Donor || txn.donor || '').toLowerCase();
+            const recipient = (txn.Recipient || txn.recipient || '').toLowerCase();
+            const period = (txn.Period || txn.period || '').toLowerCase();
+            const type = (txn.Type || txn.type || '').toLowerCase();
+            const receiptType = (txn.Receipt_Type || txn.receipt_type || '').toLowerCase();
+            const amount = String(txn.Amount || txn.amount || '');
+
+            return donor.includes(searchQuery) ||
+                   recipient.includes(searchQuery) ||
+                   period.includes(searchQuery) ||
+                   type.includes(searchQuery) ||
+                   receiptType.includes(searchQuery) ||
+                   amount.includes(searchQuery);
+        });
+    }
+
+    // Apply receipt type filter
+    if (receiptTypeFilter) {
+        filtered = filtered.filter(txn => {
+            const receiptType = txn.Receipt_Type || txn.receipt_type || '';
+            return receiptType === receiptTypeFilter;
+        });
+    }
+
+    displaySearchTransactions({
+        transactions: filtered,
+        summary: calculateSummary(filtered),
+        originalQuery: currentQuery
     });
 }
 
@@ -838,7 +861,7 @@ function displaySearchTransactions(data) {
 
     // Store data for export
     currentDisplayedData = {
-        columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type'],
+        columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type', 'Receipt_Type'],
         data: transactions,
         summary: summary
     };
@@ -862,6 +885,20 @@ function displaySearchTransactions(data) {
     html += 'style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">';
     html += '</div>';
 
+    // Receipt Type filter dropdown
+    html += '<div style="margin-bottom: 1rem;">';
+    html += '<label style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.25rem; display: block;">Filter by Receipt Type:</label>';
+    html += '<select id="receiptTypeFilter" ';
+    html += 'style="width: 100%; padding: 0.75rem; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: var(--text-primary); font-size: 1rem;">';
+    html += '<option value="">All Types</option>';
+    html += '<option value="Donation Received">Donation Received</option>';
+    html += '<option value="Other Receipt">Other Receipt</option>';
+    html += '<option value="Subscription">Subscription</option>';
+    html += '<option value="Public Funding">Public Funding</option>';
+    html += '<option value="Unspecified">Unspecified</option>';
+    html += '</select>';
+    html += '</div>';
+
     // Selection tally section (hidden by default)
     html += '<div id="selectionTally" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; color: white; display: none;">';
     html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
@@ -881,6 +918,7 @@ function displaySearchTransactions(data) {
     html += '<th class="sortable" data-column="Date" onclick="sortTable(\'Date\')">Date <span class="sort-indicator"></span></th>';
     html += '<th class="sortable" data-column="Period" onclick="sortTable(\'Period\')">Period <span class="sort-indicator"></span></th>';
     html += '<th class="sortable" data-column="Type" onclick="sortTable(\'Type\')">Type <span class="sort-indicator"></span></th>';
+    html += '<th class="sortable" data-column="Receipt_Type" onclick="sortTable(\'Receipt_Type\')">Receipt Type <span class="sort-indicator"></span></th>';
     html += '</tr></thead><tbody>';
 
     transactions.forEach((txn, index) => {
@@ -895,6 +933,7 @@ function displaySearchTransactions(data) {
         html += `<td>${escapeHtml(txn.Date || txn.date || '')}</td>`;
         html += `<td>${escapeHtml(txn.period || txn.Period || '')}</td>`;
         html += `<td>${escapeHtml(txn.type || txn.Type || '')}</td>`;
+        html += `<td>${escapeHtml(txn.receipt_type || txn.Receipt_Type || '')}</td>`;
         html += '</tr>';
     });
 
@@ -908,6 +947,9 @@ function displaySearchTransactions(data) {
 
     // Setup search-within-results after rendering
     setupSearchWithinResults();
+
+    // Setup receipt type filter after rendering
+    setupReceiptTypeFilter();
 
     // Update sort indicators
     updateSortIndicators();
