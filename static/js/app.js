@@ -653,12 +653,26 @@ function setupReceiptTypeFilter() {
     });
 }
 
-// Apply all filters (search-within-results + receipt type filter)
+// Apply all filters (search-within-results + receipt type filter + period filter)
 function applyAllFilters() {
     const searchQuery = document.getElementById('searchWithinResults')?.value.trim().toLowerCase() || '';
     const receiptTypeFilter = document.getElementById('receiptTypeFilter')?.value || '';
 
+    // Get selected periods
+    const selectedPeriods = getSelectedPeriods();
+
     let filtered = allTransactions;
+
+    // Apply period filter first
+    if (selectedPeriods.length > 0) {
+        filtered = filtered.filter(txn => {
+            const period = txn.Period || '';
+            // Match against selected periods (partial match for flexibility)
+            return selectedPeriods.some(selectedPeriod =>
+                period.includes(selectedPeriod) || selectedPeriod.includes(period)
+            );
+        });
+    }
 
     // Apply search-within-results filter
     if (searchQuery.length > 0) {
@@ -692,6 +706,66 @@ function applyAllFilters() {
         summary: calculateSummary(filtered),
         originalQuery: currentQuery
     });
+}
+
+// Get selected periods from checkboxes
+function getSelectedPeriods() {
+    const checkboxes = document.querySelectorAll('.period-filter-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Apply period filter and update UI
+function applyPeriodFilter() {
+    const selectedPeriods = getSelectedPeriods();
+
+    // Show/hide clear button
+    const clearBtn = document.getElementById('clearPeriodFilter');
+    if (clearBtn) {
+        clearBtn.style.display = selectedPeriods.length > 0 ? 'inline-block' : 'none';
+    }
+
+    // Update active filters display
+    updateActivePeriodFilters(selectedPeriods);
+
+    // Apply all filters
+    applyAllFilters();
+}
+
+// Update active period filters display
+function updateActivePeriodFilters(selectedPeriods) {
+    const container = document.getElementById('activePeriodFilters');
+    if (!container) return;
+
+    if (selectedPeriods.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '<div class="filter-tags">';
+    selectedPeriods.forEach(period => {
+        html += `<span class="filter-tag">${escapeHtml(period)} <button onclick="removePeriodFilter('${escapeHtml(period)}')" class="remove-tag">×</button></span>`;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// Remove individual period filter
+function removePeriodFilter(period) {
+    const checkboxes = document.querySelectorAll('.period-filter-checkbox');
+    checkboxes.forEach(cb => {
+        if (cb.value === period) {
+            cb.checked = false;
+        }
+    });
+    applyPeriodFilter();
+}
+
+// Clear all period filters
+function clearPeriodFilter() {
+    const checkboxes = document.querySelectorAll('.period-filter-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    applyPeriodFilter();
 }
 
 // Sort table by column

@@ -220,60 +220,74 @@
                 <div id="autocompleteResults" class="autocomplete-results"></div>
             </div>
 
-            <!-- Filter Panels - TEMPORARILY DISABLED FOR SEARCH TESTING -->
-            <!--
-            <div class="filter-panels">
-                <div class="filter-card">
-                    <h3>Time Period</h3>
-                    <select id="filterPeriod" class="filter-select" onchange="applyFilters()">
-                        <optgroup label="Federal Elections">
-                            <option value="2025">2025 Federal Election</option>
-                            <option value="2022">2022 Federal Election</option>
-                            <option value="2019">2019 Federal Election</option>
-                            <option value="2016">2016 Federal Election</option>
-                            <option value="2013">2013 Federal Election</option>
-                            <option value="2010">2010 Federal Election</option>
-                            <option value="2007">2007 Federal Election</option>
-                        </optgroup>
-                        <optgroup label="Annual Returns">
-                            <option value="2023-24">2023-24 Financial Year</option>
-                            <option value="2022-23">2022-23 Financial Year</option>
-                            <option value="2021-22">2021-22 Financial Year</option>
-                            <option value="2020-21">2020-21 Financial Year</option>
-                            <option value="2019-20">2019-20 Financial Year</option>
-                        </optgroup>
-                        <optgroup label="Custom Ranges">
-                            <option value="last-2-years">Last 2 Years</option>
-                            <option value="all-time">All Time</option>
-                        </optgroup>
-                    </select>
-                    <label class="filter-checkbox">
-                        <input type="checkbox" id="compareMode" onchange="toggleCompare()">
-                        Compare two periods
-                    </label>
+            <!-- Period Filter -->
+            <div class="period-filter-container">
+                <div class="filter-header">
+                    <h3>🗓️ Filter by Time Period</h3>
+                    <button id="clearPeriodFilter" class="btn-clear-filter" style="display: none;" onclick="clearPeriodFilter()">Clear All</button>
                 </div>
-
-                <div class="filter-card">
-                    <h3>Entity Type</h3>
-                    <label class="filter-checkbox"><input type="checkbox" value="parties" checked onchange="applyFilters()"> Political Parties</label>
-                    <label class="filter-checkbox"><input type="checkbox" value="independents" checked onchange="applyFilters()"> Independents</label>
-                    <label class="filter-checkbox"><input type="checkbox" value="third-parties" checked onchange="applyFilters()"> Third Parties</label>
-                    <label class="filter-checkbox"><input type="checkbox" value="associated" checked onchange="applyFilters()"> Associated Entities</label>
-                </div>
-
-                <div class="filter-card">
-                    <h3>Amount Range</h3>
-                    <div class="amount-presets">
-                        <button class="preset-btn" onclick="setAmountFilter(10000, this)">{">"} $10K</button>
-                        <button class="preset-btn" onclick="setAmountFilter(50000, this)">{">"} $50K</button>
-                        <button class="preset-btn" onclick="setAmountFilter(100000, this)">{">"} $100K</button>
-                        <button class="preset-btn" onclick="setAmountFilter(1000000, this)">{">"} $1M</button>
+                <div class="period-filter-sections">
+                    <div class="period-section">
+                        <h4>Federal Elections</h4>
+                        <div class="period-checkboxes">
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2025 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2025 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2022 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2022 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2019 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2019 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2016 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2016 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2013 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2013 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2010 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2010 Election</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2007 Federal Election" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2007 Election</span>
+                            </label>
+                        </div>
                     </div>
-                    <input type="range" id="amountSlider" min="0" max="10000000" step="10000" value="0" oninput="applyFilters()">
-                    <div class="amount-display">Min: $<span id="amountValue">0</span></div>
+                    <div class="period-section">
+                        <h4>Annual Returns</h4>
+                        <div class="period-checkboxes">
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2023-24" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2023-24</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2022-23" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2022-23</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2021-22" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2021-22</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2020-21" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2020-21</span>
+                            </label>
+                            <label class="period-checkbox">
+                                <input type="checkbox" value="2019-20" class="period-filter-checkbox" onchange="applyPeriodFilter()">
+                                <span>2019-20</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
+                <div id="activePeriodFilters" class="active-filters"></div>
             </div>
-            -->
 
             <!-- Quick Actions -->
             <div class="quick-actions">
