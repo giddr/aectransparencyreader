@@ -213,8 +213,11 @@
 
             <!-- Global Search -->
             <div class="search-container">
-                <input type="text" id="globalSearch" placeholder="Search donors, recipients, or amounts (e.g., '>50000', '100000-500000')..." class="search-input">
-                <div id="searchResults" class="search-results" style="display: none;"></div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="globalSearch" placeholder="Search donors, recipients, or amounts (e.g., '>50000', '100000-500000')..." class="search-input" style="flex: 1;">
+                    <button onclick="triggerManualSearch()" class="btn-search" style="padding: 0.75rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; white-space: nowrap;">Go</button>
+                </div>
+                <div id="autocompleteResults" class="autocomplete-results"></div>
             </div>
 
             <!-- Filter Panels - TEMPORARILY DISABLED FOR SEARCH TESTING -->

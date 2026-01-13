@@ -350,51 +350,51 @@ function setupGlobalSearch() {
         }
 
         if (query.length < 2) {
-            // Hide autocomplete and show default message
+            // Hide autocomplete
             hideAutocomplete();
-            const resultsContainer = document.getElementById('exploreResults');
-            if (resultsContainer) {
-                resultsContainer.innerHTML = '<div class="loading">Type at least 2 characters to search...</div>';
-            }
             return;
         }
 
-        // Show loading indicator immediately
-        const resultsContainer = document.getElementById('exploreResults');
-        if (resultsContainer) {
-            resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
-        }
-
-        // Fetch autocomplete suggestions AND trigger search automatically (100ms debounce)
+        // Only show autocomplete suggestions, don't trigger search automatically
         searchTimeout = setTimeout(() => {
             fetchAutocompleteSuggestions(query);
-            performGlobalSearch(query);
-        }, 100);
+        }, 200);
     });
 
     // Handle keyboard navigation
     searchInput.addEventListener('keydown', (e) => {
         const container = document.getElementById('autocompleteResults');
-        if (!container || container.style.display === 'none') return;
+        const hasAutocomplete = container && container.style.display !== 'none';
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
-            highlightSuggestion(selectedIndex);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, -1);
-            highlightSuggestion(selectedIndex);
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (selectedIndex >= 0 && currentSuggestions[selectedIndex]) {
-                selectSuggestion(currentSuggestions[selectedIndex].name);
-            } else {
-                performGlobalSearch(searchInput.value.trim());
+        if (hasAutocomplete) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
+                highlightSuggestion(selectedIndex);
+                return;
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                highlightSuggestion(selectedIndex);
+                return;
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && currentSuggestions[selectedIndex]) {
+                    selectSuggestion(currentSuggestions[selectedIndex].name);
+                } else {
+                    triggerManualSearch();
+                }
+                return;
+            } else if (e.key === 'Escape') {
                 hideAutocomplete();
+                return;
             }
-        } else if (e.key === 'Escape') {
-            hideAutocomplete();
+        }
+
+        // If no autocomplete or Enter key pressed
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            triggerManualSearch();
         }
     });
 
@@ -466,7 +466,7 @@ function setupGlobalSearch() {
     function selectSuggestion(name) {
         searchInput.value = name;
         hideAutocomplete();
-        performGlobalSearch(name);
+        // Don't auto-search, let user click Go button
     }
 
     function hideAutocomplete() {
@@ -514,6 +514,30 @@ function parseSearchQuery(query) {
             value: query
         };
     }
+}
+
+// Trigger manual search from Go button or Enter key
+function triggerManualSearch() {
+    const searchInput = document.getElementById('globalSearch');
+    if (!searchInput) return;
+
+    const query = searchInput.value.trim();
+
+    if (query.length < 2) {
+        const resultsContainer = document.getElementById('exploreResults');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '<div class="loading">Please enter at least 2 characters to search</div>';
+        }
+        return;
+    }
+
+    // Hide autocomplete and perform search
+    const autocompleteContainer = document.getElementById('autocompleteResults');
+    if (autocompleteContainer) {
+        autocompleteContainer.style.display = 'none';
+    }
+
+    performGlobalSearch(query);
 }
 
 // Perform global search
