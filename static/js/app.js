@@ -531,10 +531,16 @@ function triggerManualSearch() {
         return;
     }
 
-    // Hide autocomplete and perform search
+    // Clear any pending autocomplete timeout
+    if (typeof searchTimeout !== 'undefined') {
+        clearTimeout(searchTimeout);
+    }
+
+    // Force hide autocomplete
     const autocompleteContainer = document.getElementById('autocompleteResults');
     if (autocompleteContainer) {
         autocompleteContainer.style.display = 'none';
+        autocompleteContainer.innerHTML = '';  // Clear content too
     }
 
     performGlobalSearch(query);
@@ -897,7 +903,7 @@ function detectEntityGroupsClientSide(transactions, query) {
     transactions.forEach(txn => {
         const recipient = (txn.Recipient || '').toLowerCase();
         const donor = (txn.Donor || '').toLowerCase();
-        const name = recipient.includes(queryLower) ? txn.Recipient : txn.Donor;
+        const name = recipient.includes(queryLower) ? (txn.Recipient || '') : (txn.Donor || '');
         const nameLower = name.toLowerCase();
 
         // Detect branch patterns: "Australian Labor Party (NSW Branch)"
