@@ -539,7 +539,7 @@ async function performGlobalSearch(query) {
             // If amount query, filter client-side
             if (parsedQuery.type === 'amount') {
                 filteredTransactions = data.transactions.filter(txn => {
-                    const amount = txn.Amount || txn.amount || 0;
+                    const amount = txn.Amount || 0;
 
                     if (parsedQuery.operator === 'gte') {
                         return amount >= parsedQuery.value;
@@ -552,9 +552,9 @@ async function performGlobalSearch(query) {
                 });
 
                 // Recalculate summary for filtered results
-                const total_amount = filteredTransactions.reduce((sum, t) => sum + (t.Amount || t.amount || 0), 0);
-                const donors = new Set(filteredTransactions.map(t => t.Donor || t.donor).filter(Boolean));
-                const recipients = new Set(filteredTransactions.map(t => t.Recipient || t.recipient).filter(Boolean));
+                const total_amount = filteredTransactions.reduce((sum, t) => sum + (t.Amount || 0), 0);
+                const donors = new Set(filteredTransactions.map(t => t.Donor).filter(Boolean));
+                const recipients = new Set(filteredTransactions.map(t => t.Recipient).filter(Boolean));
 
                 data.summary = {
                     total_transactions: filteredTransactions.length,
@@ -584,9 +584,9 @@ async function performGlobalSearch(query) {
 
 // Calculate summary statistics from transactions
 function calculateSummary(transactions) {
-    const total_amount = transactions.reduce((sum, t) => sum + (t.Amount || t.amount || 0), 0);
-    const donors = new Set(transactions.map(t => t.Donor || t.donor).filter(Boolean));
-    const recipients = new Set(transactions.map(t => t.Recipient || t.recipient).filter(Boolean));
+    const total_amount = transactions.reduce((sum, t) => sum + (t.Amount || 0), 0);
+    const donors = new Set(transactions.map(t => t.Donor).filter(Boolean));
+    const recipients = new Set(transactions.map(t => t.Recipient).filter(Boolean));
 
     return {
         total_transactions: transactions.length,
@@ -633,12 +633,12 @@ function applyAllFilters() {
     // Apply search-within-results filter
     if (searchQuery.length > 0) {
         filtered = filtered.filter(txn => {
-            const donor = (txn.Donor || txn.donor || '').toLowerCase();
-            const recipient = (txn.Recipient || txn.recipient || '').toLowerCase();
-            const period = (txn.Period || txn.period || '').toLowerCase();
-            const type = (txn.Type || txn.type || '').toLowerCase();
-            const receiptType = (txn.Receipt_Type || txn.receipt_type || '').toLowerCase();
-            const amount = String(txn.Amount || txn.amount || '');
+            const donor = (txn.Donor || '').toLowerCase();
+            const recipient = (txn.Recipient || '').toLowerCase();
+            const period = (txn.Period || '').toLowerCase();
+            const type = (txn.Type || '').toLowerCase();
+            const receiptType = (txn.Receipt_Type || '').toLowerCase();
+            const amount = String(txn.Amount || '');
 
             return donor.includes(searchQuery) ||
                    recipient.includes(searchQuery) ||
@@ -652,7 +652,7 @@ function applyAllFilters() {
     // Apply receipt type filter
     if (receiptTypeFilter) {
         filtered = filtered.filter(txn => {
-            const receiptType = txn.Receipt_Type || txn.receipt_type || '';
+            const receiptType = txn.Receipt_Type || '';
             return receiptType === receiptTypeFilter;
         });
     }
@@ -825,16 +825,16 @@ function updateSelectionTally() {
     selectedRows.forEach(index => {
         const txn = transactions[index];
         if (txn) {
-            totalAmount += (txn.Amount || txn.amount || 0);
+            totalAmount += (txn.Amount || 0);
         }
     });
 
     const averageAmount = selectedCount > 0 ? totalAmount / selectedCount : 0;
 
     // Update display
-    countSpan.textContent = selectedCount;
-    totalSpan.textContent = formatCurrency(totalAmount);
-    averageSpan.textContent = formatCurrency(averageAmount);
+    if (countSpan) countSpan.textContent = selectedCount;
+    if (totalSpan) totalSpan.textContent = formatCurrency(totalAmount);
+    if (averageSpan) averageSpan.textContent = formatCurrency(averageAmount);
 }
 
 // Clear all selections
@@ -1174,13 +1174,13 @@ function renderTransactionsTable(transactions, summary) {
 
         html += `<tr ${rowClass} data-index="${index}">`;
         html += `<td><input type="checkbox" class="row-checkbox" data-index="${index}" ${isSelected} onchange="toggleRowSelection(${index})"></td>`;
-        html += `<td>${escapeHtml(txn.donor || txn.Donor || '')}</td>`;
-        html += `<td>${escapeHtml(txn.recipient || txn.Recipient || '')}</td>`;
-        html += `<td>${formatCurrency(txn.Amount || txn.amount || 0)}</td>`;
-        html += `<td>${escapeHtml(txn.Date || txn.date || '')}</td>`;
-        html += `<td>${escapeHtml(txn.period || txn.Period || '')}</td>`;
-        html += `<td>${escapeHtml(txn.type || txn.Type || '')}</td>`;
-        html += `<td>${escapeHtml(txn.receipt_type || txn.Receipt_Type || '')}</td>`;
+        html += `<td>${escapeHtml(txn.Donor || '')}</td>`;
+        html += `<td>${escapeHtml(txn.Recipient || '')}</td>`;
+        html += `<td>${formatCurrency(txn.Amount || 0)}</td>`;
+        html += `<td>${escapeHtml(txn.Date || '')}</td>`;
+        html += `<td>${escapeHtml(txn.Period || '')}</td>`;
+        html += `<td>${escapeHtml(txn.Type || '')}</td>`;
+        html += `<td>${escapeHtml(txn.Receipt_Type || '')}</td>`;
         html += '</tr>';
     });
 
