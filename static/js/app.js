@@ -1198,78 +1198,84 @@ function renderTransactionsTable(transactions, summary) {
 // Display search transaction results with three-tier investigative structure
 function displaySearchTransactions(data) {
     const resultsContainer = document.getElementById('exploreResults');
-    const summary = data.summary;
-    const transactions = data.transactions;
-    const query = data.originalQuery || '';
 
-    // Store unfiltered transactions for search-within-search
-    allTransactions = transactions;
-    currentQuery = query;
+    try {
+        const summary = data.summary;
+        const transactions = data.transactions;
+        const query = data.originalQuery || '';
 
-    // Store data for export
-    currentDisplayedData = {
-        columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type', 'Receipt_Type'],
-        data: transactions,
-        summary: summary
-    };
+        // Store unfiltered transactions for search-within-search
+        allTransactions = transactions;
+        currentQuery = query;
 
-    // 1. Detect entity patterns client-side
-    const entityGroups = detectEntityGroupsClientSide(transactions, query);
+        // Store data for export
+        currentDisplayedData = {
+            columns: ['Donor', 'Recipient', 'Amount', 'Date', 'Period', 'Type', 'Receipt_Type'],
+            data: transactions,
+            summary: summary
+        };
 
-    // 2. Calculate aggregations
-    const aggregations = calculateClientSideAggregations(transactions);
+        // 1. Detect entity patterns client-side
+        const entityGroups = detectEntityGroupsClientSide(transactions, query);
 
-    // 3. Render three-tier structure
-    let html = '';
+        // 2. Calculate aggregations
+        const aggregations = calculateClientSideAggregations(transactions);
 
-    // TIER 1: Intelligence Summary Card
-    html += renderIntelligenceSummary(query, aggregations, entityGroups);
+        // 3. Render three-tier structure
+        let html = '';
 
-    // TIER 2: Collapsible Entity Groups (if detected)
-    const hasBranches = Object.keys(entityGroups.branches).length > 0;
-    const hasAssociated = entityGroups.associated.length > 0;
-    const hasMainEntity = entityGroups.main_entity.length > 0;
+        // TIER 1: Intelligence Summary Card
+        html += renderIntelligenceSummary(query, aggregations, entityGroups);
 
-    if (hasBranches || hasAssociated || hasMainEntity) {
-        html += '<div class="entity-groups-section">';
+        // TIER 2: Collapsible Entity Groups (if detected)
+        const hasBranches = Object.keys(entityGroups.branches).length > 0;
+        const hasAssociated = entityGroups.associated.length > 0;
+        const hasMainEntity = entityGroups.main_entity.length > 0;
 
-        // Main entity group
-        if (hasMainEntity) {
-            html += renderEntityGroup('Main Entity', entityGroups.main_entity, 'main');
+        if (hasBranches || hasAssociated || hasMainEntity) {
+            html += '<div class="entity-groups-section">';
+
+            // Main entity group
+            if (hasMainEntity) {
+                html += renderEntityGroup('Main Entity', entityGroups.main_entity, 'main');
+            }
+
+            // Branch entities
+            if (hasBranches) {
+                html += renderEntityGroup('State/Territory Branches', entityGroups.branches, 'branches');
+            }
+
+            // Associated entities
+            if (hasAssociated) {
+                html += renderEntityGroup('Associated Entities', entityGroups.associated, 'associated');
+            }
+
+            html += '</div>';
         }
 
-        // Branch entities
-        if (hasBranches) {
-            html += renderEntityGroup('State/Territory Branches', entityGroups.branches, 'branches');
-        }
+        // TIER 3: Full Transaction Table (existing functionality)
+        html += renderTransactionsTable(transactions, summary);
 
-        // Associated entities
-        if (hasAssociated) {
-            html += renderEntityGroup('Associated Entities', entityGroups.associated, 'associated');
-        }
+        resultsContainer.innerHTML = html;
 
-        html += '</div>';
+        // Setup search-within-results after rendering
+        setupSearchWithinResults();
+
+        // Setup receipt type filter after rendering
+        setupReceiptTypeFilter();
+
+        // Update sort indicators
+        updateSortIndicators();
+
+        // Update selection tally
+        updateSelectionTally();
+
+        // Update select all checkbox state
+        updateSelectAllCheckbox();
+    } catch (error) {
+        console.error('Error displaying search results:', error);
+        resultsContainer.innerHTML = `<div class="loading">Error rendering results: ${error.message}</div>`;
     }
-
-    // TIER 3: Full Transaction Table (existing functionality)
-    html += renderTransactionsTable(transactions, summary);
-
-    resultsContainer.innerHTML = html;
-
-    // Setup search-within-results after rendering
-    setupSearchWithinResults();
-
-    // Setup receipt type filter after rendering
-    setupReceiptTypeFilter();
-
-    // Update sort indicators
-    updateSortIndicators();
-
-    // Update selection tally
-    updateSelectionTally();
-
-    // Update select all checkbox state
-    updateSelectAllCheckbox();
 }
 
 // Apply filters
