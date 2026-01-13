@@ -228,6 +228,20 @@ def quote_identifiers_for_postgres(sql):
 
     return sql
 
+def normalize_column_name(col_name):
+    """Normalize PostgreSQL lowercase column names to capital-first format"""
+    # Map of expected column names (lowercase -> Capital-first)
+    mapping = {
+        'donor': 'Donor',
+        'recipient': 'Recipient',
+        'amount': 'Amount',
+        'date': 'Date',
+        'period': 'Period',
+        'type': 'Type',
+        'receipt_type': 'Receipt_Type'
+    }
+    return mapping.get(col_name.lower(), col_name)
+
 def execute_query(sql):
     """Execute SQL query and return results (SQLite or PostgreSQL)"""
     try:
@@ -242,10 +256,16 @@ def execute_query(sql):
             # Fetch all rows
             rows = cursor.fetchall()
 
-            # Convert RealDictRow to regular dict
-            results = [dict(row) for row in rows]
+            # Convert RealDictRow to regular dict and normalize column names
+            results = []
+            for row in rows:
+                normalized_row = {}
+                for key, value in row.items():
+                    normalized_key = normalize_column_name(key)
+                    normalized_row[normalized_key] = value
+                results.append(normalized_row)
 
-            # Get column names
+            # Get normalized column names
             columns = list(results[0].keys()) if results else []
         else:
             # SQLite execution
