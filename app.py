@@ -201,10 +201,16 @@ def quote_identifiers_for_postgres(sql):
     columns = [
         'Event', 'Name', 'Total_Receipts', 'Total_Payments', 'Total_Debts', 'Financial_Year',
         'Donor_Name', 'Donor_Code', 'Donated_To', 'Donated_To_Gift_Value', 'Donated_To_Date_Of_Gift',
-        'Donation_Made_To', 'Value', 'Date', 'Party_Name', 'Electorate_Name',
+        'Donation_Made_To', 'Donation_Received_From', 'Value', 'Date', 'Party_Name', 'Electorate_Name',
         'Total_Gift_Value', 'Number_Of_Donors', 'Total_Electoral_Expenditure',
         'Total_Donations_Received', 'Number_of_Donors', 'Total_Donations_Made',
-        'Electoral_Expenditure', 'Advertiser', 'Advertiser_Type', 'Amount'
+        'Electoral_Expenditure', 'Advertiser', 'Advertiser_Type', 'Amount',
+        'Received_From', 'Recipient_Name',
+        'Gift_From_Name', 'Gift_From_Gift_Value', 'Gift_From_Date_Of_Gift',
+        'Third_Party_Name', 'Third_Party_Code',
+        'Donation_Value', 'Date_Of_Donation',
+        'Gift_Value', 'Date_Of_Gift',
+        'Return_Type_Candidate_Senate_Group'
     ]
 
     # Replace table names
@@ -608,6 +614,131 @@ def search():
     results_annual = execute_query(sql_annual)
     if results_annual['success'] and results_annual['data']:
         all_transactions.extend(results_annual['data'])
+
+    # Search ALL annual donations received (donations TO parties/entities) - sorted by amount
+    sql_annual_received = f"""
+        SELECT
+            Donation_Received_From as Donor,
+            Name as Recipient,
+            Value as Amount,
+            Date,
+            Financial_Year as Period,
+            'Annual Return (Received)' as Type
+        FROM annual_Donor_Donations_Received
+        WHERE (Donation_Received_From {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        ORDER BY Value DESC
+        LIMIT 200
+    """
+    results_annual_received = execute_query(sql_annual_received)
+    if results_annual_received['success'] and results_annual_received['data']:
+        all_transactions.extend(results_annual_received['data'])
+
+    # Search annual detailed receipts (party annual returns) - sorted by amount
+    sql_detailed_receipts = f"""
+        SELECT
+            Received_From as Donor,
+            Recipient_Name as Recipient,
+            Value as Amount,
+            Financial_Year as Period,
+            'Party Annual Return' as Type
+        FROM annual_Detailed_Receipts
+        WHERE (Received_From {like_op} '%{query}%' OR Recipient_Name {like_op} '%{query}%')
+        ORDER BY Value DESC
+        LIMIT 200
+    """
+    results_detailed_receipts = execute_query(sql_detailed_receipts)
+    if results_detailed_receipts['success'] and results_detailed_receipts['data']:
+        all_transactions.extend(results_detailed_receipts['data'])
+
+    # Search election donations received (donations TO donors/entities) - sorted by amount
+    sql_election_received = f"""
+        SELECT
+            Gift_From_Name as Donor,
+            Donor_Name as Recipient,
+            Gift_From_Gift_Value as Amount,
+            Gift_From_Date_Of_Gift as Date,
+            Event as Period,
+            'Election Donation (Received)' as Type
+        FROM election_Donor_Donations_Received
+        WHERE (Gift_From_Name {like_op} '%{query}%' OR Donor_Name {like_op} '%{query}%')
+        ORDER BY Gift_From_Gift_Value DESC
+        LIMIT 200
+    """
+    results_election_received = execute_query(sql_election_received)
+    if results_election_received['success'] and results_election_received['data']:
+        all_transactions.extend(results_election_received['data'])
+
+    # Search third party donations made (elections) - sorted by amount
+    sql_tp_donations_made = f"""
+        SELECT
+            Third_Party_Name as Donor,
+            Name as Recipient,
+            Donation_Value as Amount,
+            Date_Of_Donation as Date,
+            Event as Period,
+            'Third Party Donation (Made)' as Type
+        FROM election_Third_Party_Return_Donations_Made
+        WHERE (Third_Party_Name {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        ORDER BY Donation_Value DESC
+        LIMIT 200
+    """
+    results_tp_made = execute_query(sql_tp_donations_made)
+    if results_tp_made['success'] and results_tp_made['data']:
+        all_transactions.extend(results_tp_made['data'])
+
+    # Search third party donations received (elections) - sorted by amount
+    sql_tp_donations_received = f"""
+        SELECT
+            Donor_Name as Donor,
+            Third_Party_Name as Recipient,
+            Gift_Value as Amount,
+            Date_Of_Gift as Date,
+            Event as Period,
+            'Third Party Donation (Received)' as Type
+        FROM election_Third_Party_Return_Donations_Received
+        WHERE (Donor_Name {like_op} '%{query}%' OR Third_Party_Name {like_op} '%{query}%')
+        ORDER BY Gift_Value DESC
+        LIMIT 200
+    """
+    results_tp_received = execute_query(sql_tp_donations_received)
+    if results_tp_received['success'] and results_tp_received['data']:
+        all_transactions.extend(results_tp_received['data'])
+
+    # Search candidate/senate group donations (elections) - sorted by amount
+    sql_candidate_donations = f"""
+        SELECT
+            Donor_Name as Donor,
+            Name as Recipient,
+            Gift_Value as Amount,
+            Date_Of_Gift as Date,
+            Event as Period,
+            'Candidate Donation' as Type
+        FROM election_Senate_Groups_and_Candidate_Donations
+        WHERE (Donor_Name {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        ORDER BY Gift_Value DESC
+        LIMIT 200
+    """
+    results_candidate = execute_query(sql_candidate_donations)
+    if results_candidate['success'] and results_candidate['data']:
+        all_transactions.extend(results_candidate['data'])
+
+    # Search annual third party donations received - sorted by amount
+    sql_annual_tp_received = f"""
+        SELECT
+            Donation_Received_From as Donor,
+            Name as Recipient,
+            Value as Amount,
+            Date,
+            Financial_Year as Period,
+            'Third Party Annual Donation' as Type
+        FROM annual_Third_Party_Donations_Received
+        WHERE (Donation_Received_From {like_op} '%{query}%' OR Name {like_op} '%{query}%')
+        ORDER BY Value DESC
+        LIMIT 200
+    """
+    results_annual_tp = execute_query(sql_annual_tp_received)
+    if results_annual_tp['success'] and results_annual_tp['data']:
+        all_transactions.extend(results_annual_tp['data'])
 
     # Calculate summary statistics
     total_amount = sum(t.get('Amount') or 0 for t in all_transactions)
